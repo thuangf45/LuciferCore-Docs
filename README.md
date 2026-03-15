@@ -53,6 +53,6 @@ The documentation and examples in this repository are licensed under the **MIT L
 ## 👤 Author
 
 **Nguyen Minh Thuan (Lucifer)**
-- **GitHub:** [@Lucifer-VN](https://github.com/Lucifer-VN)
-- **Portfolio:** [thuangf45.github.io](https://thuangf45.github.io)
+- **GitHub:** [Nguyen Minh Thuan](https://github.com/thuangf45)
+- **Portfolio:** [Thuangf45](https://thuangf45.github.io)
 - **NuGet:** [LuciferCore](https://www.nuget.org/packages/LuciferCore/)
