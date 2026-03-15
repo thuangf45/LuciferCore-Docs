@@ -1,9 +1,10 @@
 # Table of Contents
 
 ## Overview
-* [Introduction](README.md)
+
 
 ## Getting Started
+* [Introduction](getting-started/README.md)
 * [Installation](getting-started/installation.md)
 * [Quick Start](getting-started/quick-start.md)
 * [Entry Point](getting-started/entry-point.md)
