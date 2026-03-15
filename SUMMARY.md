@@ -39,10 +39,8 @@
     * [Packet Model](api-reference/model/model-packet.md)
     * [Request Model](api-reference/model/model-request.md)
     * [Response Model](api-reference/model/model-response.md)
+
 * NetCoreServer
-    * Protocols
-        * [HTTP Protocol](api-reference/netcoreserver/Protocol/http-protocol.md)
-        * [WebSocket Protocol](api-reference/netcoreserver/Protocol/ws-protocol.md)
     * Transport
         * Core
             * [SessionTransport](api-reference/netcoreserver/Transport/Core/transport-session.md)
@@ -50,15 +48,15 @@
             * [ClientTransport](api-reference/netcoreserver/Transport/Core/transport-client.md)
             * [StreamSessionTransport](api-reference/netcoreserver/Transport/Core/transport-stream-session.md)
             * [StreamClientTransport](api-reference/netcoreserver/Transport/Core/transport-stream-client.md)
+        * TCP
+            * [TcpServer](api-reference/netcoreserver/Transport/Tcp/tcp-server.md)
+            * [TcpSession](api-reference/netcoreserver/Transport/Tcp/tcp-session.md)
+            * [TcpClient](api-reference/netcoreserver/Transport/Tcp/tcp-client.md)
         * SSL
             * [SslContext](api-reference/netcoreserver/Transport/Ssl/ssl-context.md)
             * [SslServer](api-reference/netcoreserver/Transport/Ssl/ssl-server.md)
             * [SslSession](api-reference/netcoreserver/Transport/Ssl/ssl-session.md)
             * [SslClient](api-reference/netcoreserver/Transport/Ssl/ssl-client.md)
-        * TCP
-            * [TcpServer](api-reference/netcoreserver/Transport/Tcp/tcp-server.md)
-            * [TcpSession](api-reference/netcoreserver/Transport/Tcp/tcp-session.md)
-            * [TcpClient](api-reference/netcoreserver/Transport/Tcp/tcp-client.md)
         * UDP
             * [UdpServer](api-reference/netcoreserver/Transport/Udp/udp-server.md)
             * [UdpSession](api-reference/netcoreserver/Transport/Udp/udp-session.md)
@@ -67,6 +65,9 @@
             * [UdsServer](api-reference/netcoreserver/Transport/Uds/uds-server.md)
             * [UdsSession](api-reference/netcoreserver/Transport/Uds/uds-session.md)
             * [UdsClient](api-reference/netcoreserver/Transport/Uds/uds-client.md)
+    * Protocols
+        * [HTTP Protocol](api-reference/netcoreserver/Protocol/http-protocol.md)
+        * [WebSocket Protocol](api-reference/netcoreserver/Protocol/ws-protocol.md)
     * Servers
         * [HttpServer](api-reference/netcoreserver/Server/server-http.md)
         * [HttpsServer](api-reference/netcoreserver/Server/server-https.md)
@@ -82,6 +83,7 @@
         * [HttpsClient](api-reference/netcoreserver/Client/client-https.md)
         * [WsClient](api-reference/netcoreserver/Client/client-ws.md)
         * [WssClient](api-reference/netcoreserver/Client/client-wss.md)
+
 * Pools
     * [PooledObject](api-reference/pool/pooled-object.md)
 * Storage
