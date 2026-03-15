@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- .NET 8.0 or later
+- .NET 9.0 or later
 - A valid SSL certificate (for production WSS/HTTPS servers)
 
 ---
