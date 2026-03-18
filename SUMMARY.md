@@ -86,6 +86,9 @@
 
 * Pools
     * [PooledObject](api-reference/pool/pooled-object.md)
+* Service
+    * [Service Base](api-reference/service/service-base.md)
+    * [Service Guide](api-reference/service/service-guide.md)
 * Storage
     * [Buffer](api-reference/storage/storage-buffer.md)
     * [FileCache](api-reference/storage/storage-filecache.md)

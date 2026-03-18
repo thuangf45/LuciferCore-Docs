@@ -10,6 +10,14 @@ public abstract class ManagerBase : IDisposable
 
 ---
 
+## When to Use
+
+`ManagerBase` is designed for **heavy, continuously running tasks** — dispatch queues, simulation loops, log batching — where workload is unpredictable and low latency matters. It owns a dedicated OS thread (1–10 MB fixed cost) that stays alive and adapts its sleep interval to load.
+
+For lightweight, predictable tasks that run on a fixed schedule, use [`ServiceBase`](service-base.md) instead — it runs on a timer callback with zero fixed thread cost.
+
+---
+
 ## Thread Model
 
 ```
