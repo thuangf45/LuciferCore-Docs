@@ -1,6 +1,6 @@
 # Quick Start
 
-This page gets you from zero to a running WSS + HTTPS server in **5 steps** — no configuration files, no boilerplate, just attributes.
+This page gets you from zero to a running WSS + HTTPS server in **6 steps** — no configuration files, no boilerplate, just attributes.
 
 ---
 
@@ -191,12 +191,40 @@ public class ManagerMaster : ManagerBase
 
 ---
 
-## Step 5 — Run
+## Step 5 — Add a Background Service
+
+For periodic maintenance tasks that don't need a dedicated thread, use a Service. It runs on a fixed timer and borrows a thread pool thread only for the duration of each `Update()` call.
+
+```csharp
+[Service("CleanupService")]
+internal sealed class CleanupService : ServiceBase
+{
+    protected override void Setup()
+    {
+        Interval = TimeSpan.FromMinutes(30);
+    }
+
+    protected override void Update()
+    {
+        // periodic cleanup logic
+        Lucifer.Log(this, "Cleanup running....");
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+    }
+}
+```
+
+---
+
+## Step 6 — Run
 
 ```csharp
 using LuciferCore.Main;
 
-Lucifer.Run(); // auto-discovers all [Server], [Handler], [Manager]
+Lucifer.Run(); // auto-discovers all [Server], [Handler], [Manager], [Service]
 ```
 
 That's it. LuciferCore auto-discovers every decorated class and starts the full ecosystem.

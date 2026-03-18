@@ -14,7 +14,9 @@ public abstract class ServiceBase : IDisposable
 
 `ServiceBase` is designed for **lightweight, predictable tasks** — session cleanup, rate limit eviction, adaptive delay recalculation — that run on a fixed schedule where ±`Interval` latency is acceptable. Zero fixed thread cost between ticks.
 
-For heavy, continuously running tasks that react to unpredictable bursts or need adaptive latency, use [`ManagerBase`](manager-base.md) instead — it owns a dedicated thread that stays alive and adapts its sleep interval to load.
+Decorate your class with `[Service("name")]` for auto-discovery by `Lucifer.Run()` — identical to `[Manager]`. See [\[Service\]](../attribute/attr-service.md).
+
+For heavy, continuously running tasks that react to unpredictable bursts or need adaptive latency, use [`ManagerBase`](../manager/manager-base.md) instead — it owns a dedicated thread that stays alive and adapts its sleep interval to load.
 
 ---
 

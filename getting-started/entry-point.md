@@ -37,6 +37,9 @@ Once `Lucifer.Run()` is called, the console host is active with the following bu
 | `/start managers` | Start all `[Manager]`-decorated instances |
 | `/stop managers` | Stop all `[Manager]`-decorated instances |
 | `/restart managers` | Restart all `[Manager]`-decorated instances |
+| `/start services` | Start all `[Service]`-decorated instances |
+| `/stop services` | Stop all `[Service]`-decorated instances |
+| `/restart services` | Restart all `[Service]`-decorated instances |
 
 ---
 

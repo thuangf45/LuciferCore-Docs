@@ -14,6 +14,7 @@
 * [WebSocket Handler](guides/websocket-handler.md)
 * [HTTP Handler](guides/http-handler.md)
 * [Manager System](guides/manager-system.md)
+* [Service System](guides/service-system.md)
 * [Console Commands](guides/console-commands.md)
 
 ## API Reference
@@ -21,6 +22,7 @@
     * [Server](api-reference/attribute/attr-server.md)
     * [Handler](api-reference/attribute/attr-handler.md)
     * [Manager](api-reference/attribute/attr-manager.md)
+    * [Service](api-reference/attribute/attr-service.md)
     * [Config](api-reference/attribute/attr-config.md)
     * [RateLimiter](api-reference/attribute/attr-ratelimiter.md)
     * [Authorize](api-reference/attribute/attr-authorize.md)

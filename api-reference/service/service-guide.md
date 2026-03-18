@@ -6,20 +6,34 @@ This guide walks through implementing a service by inheriting `ServiceBase`. The
 
 ## Registering with the System
 
-Unlike managers, services are not auto-discovered via an attribute. They are instantiated and started manually — typically inside a `ManagerBase.Setup()` or at startup:
+Decorate the class with `[Service]` to register it with LuciferCore. The `name` string is the unique identifier used in console commands and log output.
 
 ```csharp
-var service = new MyService();
-service.Start();
+using LuciferCore.Attributes;
+
+[Service("MyService")]
+internal sealed class MyService : ServiceBase
+{
+    // ...
+}
 ```
+
+**Namespace:** `LuciferCore.Attributes`
+
+| Parameter | Type | Description |
+|---|---|---|
+| `name` | `string` | Unique identifier for this service. Used internally as a `ByteString` key for fast lookup. |
+
+`Lucifer.Run()` auto-discovers all `[Service]`-decorated classes, instantiates them, and calls `Start()` — no manual registration needed. The attribute is `AllowMultiple = false` — one name per class. Without it the service will not be discovered or registered by the system.
 
 ---
 
 ## Minimal Implementation
 
-Every service needs exactly one override — `Update()`:
+Every service needs the `[Service]` attribute and exactly one override — `Update()`:
 
 ```csharp
+[Service("MyService")]
 internal sealed class MyService : ServiceBase
 {
     protected override void Setup()
@@ -42,17 +56,17 @@ internal sealed class MyService : ServiceBase
 Set `Interval` inside `Setup()` — before the timer is registered. All built-in services follow this pattern:
 
 ```csharp
-// RateLimitService — evicts stale entries once per hour
+// RateLimitService — evicts stale rate state entries once per hour
 protected override void Setup() => Interval = TimeSpan.FromHours(1);
 
-// SessionService — heavy maintenance, runs every 6 hours
+// SessionService — heavy user/session maintenance, runs every 6 hours
 protected override void Setup() => Interval = TimeSpan.FromHours(6);
 
-// FinanceService — latency-sensitive, runs every 5 seconds
+// FinanceService — recalculates adaptive delays for all managers every 5 seconds
 protected override void Setup() => Interval = TimeSpan.FromSeconds(5);
 ```
 
-Choose the interval based on how stale the data can be before it becomes a problem. Services are not a good fit for sub-second work — use `ManagerBase` for that.
+Choose the interval based on how stale the data can be before it becomes a problem. Services are not suited for sub-second work — use `ManagerBase` for that.
 
 ---
 
@@ -80,7 +94,7 @@ protected override void Update()
 
 ## Processing in Batches
 
-Always cap work per `Update()` cycle with a `_batchSize` field. The timer callback runs on a thread pool thread — hogging it blocks other thread pool work:
+Always cap work per `Update()` cycle with a `_batchSize` field. The timer callback runs on a **thread pool thread** — holding it too long blocks other thread pool work across the entire process:
 
 ```csharp
 private readonly int _batchSize = 5_000;
@@ -97,7 +111,7 @@ private int Cleanup(int batchSize)
     foreach (var kv in _entries)
     {
         if (removed >= batchSize) break;
-        // ... remove expired entry
+        // ... remove expired entries
         removed++;
     }
     return removed;
@@ -122,7 +136,7 @@ private int Cleanup(int batchSize)
         {
             if (_session.TryRemove(kv.Key, out var state))
             {
-                Lucifer.Return(state); // return pooled object
+                Lucifer.Return(state); // return to pool, not GC
                 removed++;
             }
         }
@@ -135,21 +149,39 @@ private int Cleanup(int batchSize)
 
 ## Using Pooled Objects in Cleanup
 
-When evicting entries that use pooled objects (`PooledObject`), always return them to the pool rather than letting GC collect them:
+When evicting entries that extend `PooledObject`, always return them to the pool via `Lucifer.Return()` rather than letting the GC collect them:
 
 ```csharp
 // RateLimitService — RateState extends PooledObject
 if (_session.TryRemove(kv.Key, out var state))
 {
     lock (state) state.IsRemoved = true;
-    Lucifer.Return(state); // ← returns to pool, not GC
+    Lucifer.Return(state); // ← pool, not GC
     removed++;
 }
 
 // SessionService — SessionEntry extends PooledObject
-if (_sessions.TryRemove(sessionId, out var sessionEntry))
+if (_sessions.TryRemove(sessionId, out var entry))
 {
-    Lucifer.Return(sessionEntry);
+    lock (entry)
+    {
+        entry.IsRemoved = true;
+        Lucifer.Return(entry);
+    }
+}
+```
+
+---
+
+## Resetting State on Restart
+
+Override `Cleanup()` to reset mutable state when the service is restarted mid-run. `Setup()` is **not** called again on restart — only `Cleanup()` is:
+
+```csharp
+protected override void Cleanup()
+{
+    _entries.Clear();
+    Workload = 0;
 }
 ```
 
@@ -160,14 +192,14 @@ if (_sessions.TryRemove(sessionId, out var sessionEntry))
 Override `Dispose(bool)` to release resources. Always call `base.Dispose(disposing)` at the end:
 
 ```csharp
-// Simple cleanup
+// Simple clear
 protected override void Dispose(bool disposing)
 {
     _entries.Clear();
     base.Dispose(disposing);
 }
 
-// With pooled objects
+// With pooled objects — return to pool before clearing
 protected override void Dispose(bool disposing)
 {
     foreach (var kv in _entries)
@@ -180,28 +212,12 @@ protected override void Dispose(bool disposing)
 
 ---
 
-## Resetting State on Restart
-
-Override `Cleanup()` to reset mutable state when the service is restarted mid-run:
-
-```csharp
-protected override void Cleanup()
-{
-    _entries.Clear();
-    Workload = 0;
-}
-```
-
-`Cleanup()` is called by `Restart()` before the timer resumes — `Setup()` is **not** called again on restart.
-
----
-
 ## Complete Example
 
 A service that runs every 30 minutes to evict expired cache entries, using pooled objects and batch capping:
 
 ```csharp
-[LogTag("CACHE")]
+[Service("CacheCleanup")]
 internal sealed class CacheCleanupService : ServiceBase
 {
     private readonly int _batchSize = 5_000;
