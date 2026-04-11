@@ -11,8 +11,7 @@
 ## Guides
 * [Defining a Server](guides/defining-a-server.md)
 * [Configuring a Session](guides/configuring-a-session.md)
-* [WebSocket Handler](guides/websocket-handler.md)
-* [HTTP Handler](guides/http-handler.md)
+* [Defining a Handler](guides/handler.md)
 * [Manager System](guides/manager-system.md)
 * [Service System](guides/service-system.md)
 * [Console Commands](guides/console-commands.md)
@@ -27,20 +26,20 @@
     * [RateLimiter](api-reference/attribute/attr-ratelimiter.md)
     * [Authorize](api-reference/attribute/attr-authorize.md)
     * [Safe](api-reference/attribute/attr-safe.md)
-    * [Routing Attributes](api-reference/attribute/attr-routing.md)
-    * [Parameter Attributes](api-reference/attribute/attr-parameters.md)
-    * [Utility Attributes](api-reference/attribute/attr-utility.md)
+    * [Route](api-reference/attribute/attr-routing.md)
+    * [Parameter](api-reference/attribute/attr-parameters.md)
+    * [Utility](api-reference/attribute/attr-utility.md)
 * Handlers
-    * [HandlerBase](api-reference/handler/handler-base.md)
-    * [WebSocket Handler Base](api-reference/handler/handler-ws.md)
-    * [HTTP Handler Base](api-reference/handler/handler-http.md)
+    * [RouteHandler](api-reference/handler/route-handler.md)
 * Managers
-    * [Manager Base](api-reference/manager/manager-base.md)
-    * [Manager Guide](api-reference/manager/manager-guide.md)
+    * [ManagerBase](api-reference/manager/manager-base.md)
+    * [ManagerGuide](api-reference/manager/manager-guide.md)
 * Models
-    * [Packet Model](api-reference/model/model-packet.md)
-    * [Request Model](api-reference/model/model-request.md)
-    * [Response Model](api-reference/model/model-response.md)
+    * [HttpModel](api-reference/model/http-model.md)
+    * [RequestModel](api-reference/model/request-model.md)
+    * [ResponseModel](api-reference/model/response-model.md)
+    * [Custom Http Model](api-reference/model/custom-http-models.md)
+    * [PacketModel](api-reference/model/packet-model.md)
 
 * NetCoreServer
     * Transport

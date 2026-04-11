@@ -94,7 +94,7 @@ public partial class ChatSession : WssSession
 
 ```csharp
 [Handler("v1", "wss")]
-internal class WssHandler : WssHandlerBase
+internal class WssHandler : RouteHandler
 {
     public ConcurrentQueue<(byte[], long, long)> Messages = new();
 
@@ -131,7 +131,7 @@ internal class WssHandler : WssHandlerBase
 
 ```csharp
 [Handler("v1", "/api/user")]
-internal class HttpsHandler : HttpsHandlerBase
+internal class HttpsHandler : RouteHandler
 {
     [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpHead("")]
     protected void HeadHandle([Data] RequestModel request, [Session] HttpsSession session)
