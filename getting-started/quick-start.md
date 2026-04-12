@@ -224,7 +224,7 @@ internal sealed class CleanupService : ServiceBase
 ```csharp
 using LuciferCore.Main;
 
-Lucifer.Run(); // auto-discovers all [Server], [Handler], [Manager], [Service]
+Lucifer.CMD("/run"u8); // auto-discovers all [Server], [Handler], [Manager], [Service]
 ```
 
 That's it. LuciferCore auto-discovers every decorated class and starts the full ecosystem.
