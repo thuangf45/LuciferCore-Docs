@@ -9,7 +9,7 @@ The entry point for any LuciferCore application is `Program.cs`. It is intention
 ```csharp
 using LuciferCore.Main;
 
-Lucifer.Run();
+Lucifer.CMD("/run"u8);
 ```
 
 This single call:
