@@ -1,58 +1,51 @@
 # LuciferCore Documentation Source 📖
 
-This repository contains the official documentation source files for **LuciferCore**, a high-performance, modular backend framework for .NET based on Data-Oriented Design (DOD).
+This repository contains the official documentation source files and enterprise knowledge base for **LuciferCore**, a next-generation, high-performance modular backend framework for .NET based on Data-Oriented Design (DOD).
 
 > [!IMPORTANT]
 > 🌐 **Live Documentation:** [LuciferCore Docs](https://bufmod.gitbook.io/lucifercore)
 >
-> This is the source repository. For the framework's source code, please visit the [Main Repository](https://github.com/thuangf45/LuciferCore).
+> 🛒 **Commercial Licensing:** To integrate LuciferCore into closed-source commercial applications, SaaS platforms, or enterprise infrastructure without AGPL-3.0 copyleft restrictions, please acquire a premium license via our [Lemon Squeezy Store](https://bufmod.gitbook.io/lucifercore).
 
 ---
 
 ## 🚀 About LuciferCore
 
-LuciferCore is designed to push .NET performance to hardware limits. By utilizing **Data-Oriented Design (DOD)**, it ensures maximum CPU Cache Locality and zero-allocation execution pathways, making it ideal for low-latency and high-throughput server-side applications.
+LuciferCore is engineered to push .NET execution performance straight to bare-metal hardware limits. By fusing the structural architectural elegance of Object-Oriented Programming (OOP) with the brutal memory efficiency of **Data-Oriented Design (DOD)**, it guarantees maximum CPU Cache Locality and zero-allocation execution pathways for critical server-side systems.
 
-### Key Pillars:
-- **Zero-Allocation:** Optimized memory management using contiguous virtualized pools.
-- **Cache Locality:** Minimized pointer chasing to keep data in L1/L2/L3 caches.
-- **Event-Driven:** A high-scale asynchronous ecosystem for modern networking (TCP, UDP, SSL, WebSockets).
+### Core Architecture Pillars:
+- **Zero-Allocation Pipeline:** Advanced, contiguous virtualized memory pooling utilizing an ultra-fast `Buffer-Model`.
+- **Maximum Cache Locality:** Flattened memory layouts that minimize pointer chasing, keeping execution data "hot" in L1/L2/L3 CPU caches.
+- **Hardware-Scale Parallelism:** A lock-free, fully asynchronous polling ecosystem designed to completely saturate multi-core silicon.
 
 ---
 
 ## 🛠 Repository Structure
 
-The documentation is organized as follows:
+The documentation source files are organized into GitBook spaces as follows:
 
-- `getting-started/`: Installation guides, Quick Start, and Architecture overview.
-- `guides/`: Deep dives into defining servers, session management, and the Manager system.
-- `api-reference/`: Detailed technical specifications for Attributes, Models, and Transport layers (NetCoreServer).
-- `SUMMARY.md`: The backbone of the GitBook sidebar navigation.
-
----
-
-## ✍️ Contributing
-
-We welcome contributions to improve the quality of our documentation! Whether it's fixing a typo, adding a code example, or improving translations.
-
-1. **Fork** the repo.
-2. Create a new **Branch**.
-3. **Commit** your changes (ensure Markdown formatting is correct).
-4. Open a **Pull Request**.
-
-Refer to [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+- `getting-started/`: Installation pipelines, Quick Start guides, and architectural overviews.
+- `guides/`: Deep dives into high-scale server definitions, session lifecycle management, and adaptive Manager loops.
+- `api-reference/`: Technical blueprints for Attributes, Core Models, and custom high-speed Transport layers.
+- `SUMMARY.md`: The backbone architecture of the GitBook sidebar navigation.
 
 ---
 
-## 📄 License
+## 📄 Licensing & Dual-Licensing Model
 
-The documentation and examples in this repository are licensed under the **MIT License**.
+Both this documentation repository and the underlying core framework (**LuciferCore**) operate under a strict **Dual-Licensing Model**:
+
+1. **Open-Source Evaluation & Community:** Licensed under **GNU Affero General Public License v3.0 (AGPL-3.0-only)**. Any developer or organization using, hosting, or modifying this ecosystem via a network (SaaS) must disclose their entire application's source code under the same license.
+2. **Commercial Enterprise:** A paid, proprietary license distributed via **Lemon Squeezy** that grants full rights to embed LuciferCore within closed-source commercial architectures, fully exempt from AGPL copyleft obligations.
 
 ---
 
-## 👤 Author
+## 👤 Author & Support
 
-**Nguyen Minh Thuan (Lucifer)**
-- **GitHub:** [Nguyen Minh Thuan](https://github.com/thuangf45)
-- **Portfolio:** [Thuangf45](https://thuangf45.github.io)
-- **NuGet:** [LuciferCore](https://www.nuget.org/packages/LuciferCore/)
+**Nguyen Minh Thuan (thuangf45)**
+- **GitHub:** [thuangf45](https://github.com/thuangf45)
+- **Portfolio:** [thuangf45.github.io](https://thuangf45.github.io)
+- **NuGet Distribution:** [LuciferCore on NuGet](https://www.nuget.org/packages/LuciferCore/)
+- **Contact:** [kingnemacc@gmail.com](mailto:kingnemacc@gmail.com)
+
+*Pushing the boundaries of .NET performance, one buffer at a time.*
