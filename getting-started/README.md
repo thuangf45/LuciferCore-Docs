@@ -3,7 +3,7 @@
 [![NuGet](https://img.shields.io/nuget/v/LuciferCore.svg)](https://www.nuget.org/packages/LuciferCore/)
 [![Downloads](https://img.shields.io/nuget/dt/LuciferCore.svg)](https://www.nuget.org/packages/LuciferCore/)
 
-**LuciferCore** is an all-in-one, high-performance **Event-Driven Ecosystem** for .NET, built on the principles of **Data-Oriented Design (DOD)**. It leverages a revolutionary **Buffer-Model architecture** to push .NET performance to hardware limits — ensuring maximum CPU Cache Locality and zero-allocation execution.
+**LuciferCore** is an all-in-one, high-performance **Event-Driven Ecosystem** engineered explicitly for modern **Modulithic architectures**—allowing you to build clean, monolithic business modules that can easily decouple into high-speed microservices later. Designed by **thuangf45**, it flawlessly bridges the structural elegance of **Object-Oriented Programming (OOP)** with the brutal execution efficiency of **Data-Oriented Design (DOD)**, leveraging a revolutionary **Buffer-Model architecture** to push .NET performance to pure hardware limits while guaranteeing maximum CPU Cache Locality and zero-allocation execution.
 
 ---
 
