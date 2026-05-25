@@ -3,7 +3,7 @@
 This repository contains the official documentation source files and enterprise knowledge base for **LuciferCore**, a next-generation, high-performance modular backend framework for .NET based on Data-Oriented Design (DOD).
 
 > [!IMPORTANT]
-> 🛒 **Commercial Licensing:** To integrate LuciferCore into closed-source commercial applications, SaaS platforms, or enterprise infrastructure without AGPL-3.0 copyleft restrictions, please acquire a premium license via our [Lemon Squeezy Store](https://bufmod.lemonsqueezy.com/checkout/buy/ef6e7768-9b65-4e1f-a451-566d8a15940b).
+> 🛒 **Commercial Licensing:** To integrate LuciferCore into closed-source commercial applications, SaaS platforms, or enterprise infrastructure without AGPL-3.0 copyleft restrictions, please acquire a premium license via our [Lemon Squeezy Store](https://bufmod.lemonsqueezy.com/).
 
 ---
 
@@ -35,7 +35,7 @@ Both this documentation repository and the underlying core framework (**LuciferC
 
 1. **Open-Source Evaluation & Community:** Licensed under **GNU Affero General Public License v3.0 (AGPL-3.0-only)**. Any developer or organization using, hosting, or modifying this ecosystem via a network (SaaS) must disclose their entire application's source code under the same license.
 2. **Commercial Enterprise:** A paid, proprietary license distributed via **Lemon Squeezy** that grants full rights to embed LuciferCore within closed-source commercial architectures, fully exempt from AGPL copyleft obligations. 
-   👉 [Acquire a Commercial Subscription License Here](https://bufmod.lemonsqueezy.com/checkout/buy/ef6e7768-9b65-4e1f-a451-566d8a15940b)
+   👉 [Acquire a Commercial Subscription License Here](https://bufmod.lemonsqueezy.com/)
 
 ---
 
