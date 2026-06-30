@@ -95,9 +95,7 @@ public class ChatServer : WssServer
         Mapping = new(true)
         {
             { "/",          "/index.html"     },
-            { "/404",       "/404.html"       },
-            { "/login",     "/login.html"     },
-            { "/dashboard", "/dashboard.html" }
+            { "/404",       "/404.html"       }
         };
         Mapping.Freeze();
     }

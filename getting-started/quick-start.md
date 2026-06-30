@@ -21,12 +21,7 @@ public class ChatServer : WssServer
         Mapping = new(true)
         {
             { "/",          "/index.html"      },
-            { "/404",       "/404.html"        },
-            { "/home",      "/home.html"       },
-            { "/login",     "/login.html"      },
-            { "/register",  "/register.html"   },
-            { "/dashboard", "/dashboard.html"  },
-            { "/search",    "/search.html"     }
+            { "/404",       "/404.html"        }
         };
         Mapping.Freeze();
     }
@@ -99,8 +94,6 @@ internal class WssHandler : RouteHandler
     public ConcurrentQueue<(byte[], long, long)> Messages = new();
 
     [WsMessage("GetMessage")]
-    [Safe("")]
-    [RateLimiter(10, 1)]
     [Authorize(UserRole.Guest)]
     public void GetMessage([Session] ChatSession session, [Data] PacketModel data)
     {
@@ -109,8 +102,6 @@ internal class WssHandler : RouteHandler
     }
 
     [WsMessage("ChatMessage")]
-    [Safe("")]
-    [RateLimiter(20, 1)]
     [Authorize(UserRole.Guest)]
     public void SendChat([Session] ChatSession session, [Data] PacketModel data)
     {
@@ -119,8 +110,6 @@ internal class WssHandler : RouteHandler
     }
 
     [WsMessage("Default")]
-    [Safe("")]
-    [RateLimiter(20, 1)]
     [Authorize(UserRole.Guest)]
     public void Default([Session] ChatSession session, [Data] PacketModel data)
         => throw new NotImplementedException();
@@ -133,31 +122,38 @@ internal class WssHandler : RouteHandler
 [Handler("v1", "/api/user")]
 internal class HttpsHandler : RouteHandler
 {
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpHead("")]
+    [Authorize(UserRole.Guest)]
+    [HttpHead("")]
     protected void HeadHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpGet("")]
+    [Authorize(UserRole.Guest)]
+    [HttpGet("")]
     protected void GetHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpPost("")]
+    [Authorize(UserRole.Guest)]
+    [HttpPost("")]
     protected void PostHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpPut("")]
+    [Authorize(UserRole.Guest)]
+    [HttpPut("")]
     protected void PutHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpDelete("")]
+    [Authorize(UserRole.Guest)]
+    [HttpDelete("")]
     protected void DeleteHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpOptions("")]
+    [Authorize(UserRole.Guest)]
+    [HttpOptions("")]
     protected void OptionsHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
-    [Safe("")][Authorize(UserRole.Guest)][RateLimiter(100, 1)][HttpTrace("")]
+    [Authorize(UserRole.Guest)]
+    [HttpTrace("")]
     protected void TraceHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 }
@@ -165,7 +161,46 @@ internal class HttpsHandler : RouteHandler
 
 ---
 
-## Step 4 — Add a Background Manager
+#### 4. Add Cross-Cutting Logic with MiddlewareHandler
+
+`MiddlewareHandler` is a lighter sibling of `RouteHandler`: instead of multiple attribute-driven endpoints, it exposes a single `Handle` contract, making it ideal for cross-cutting concerns (auth checks, logging, request shaping) that run before a route's actual handler.
+
+Decorate your class with `[Middleware("name")]` and implement the single `Handle(IRoutable data, SessionTransport session)` method. Reference it from any handler method via `[UseMiddleware("name")]`.
+
+```csharp
+[Middleware("AuthGuard")]
+internal sealed class AuthGuardMiddleware : MiddlewareHandler
+{
+    protected override bool Handle(IRoutable data, SessionTransport session)
+    {
+        // Return false to block the pipeline, true to continue.
+        return session.IsAuthenticated;
+    }
+}
+```
+
+Attach it to a handler method:
+
+```csharp
+[WsMessage("ChatMessage")]
+[UseMiddleware("AuthGuard")]
+[Authorize(UserRole.Guest)]
+public void SendChat([Session] ChatSession session, [Data] PacketModel data)
+{
+    using var _ = data;
+    ((WssServer)session.Server).MulticastBinary(data.Buffer);
+}
+```
+
+| | RouteHandler | MiddlewareHandler |
+|---|---|---|
+| Contract | Multiple attribute-routed methods (`[WsMessage]`, `[HttpGet]`, ...) | Single `Handle(IRoutable, SessionTransport)` override |
+| Attribute | `[Handler(version, route)]` | `[Middleware(name)]` |
+| Usage | Endpoint logic | Cross-cutting checks invoked via `[UseMiddleware(name)]` |
+
+#### 5. Manage System Logic with Managers
+
+Extend `ManagerBase` for heavy, continuously running background tasks with adaptive scheduling.
 
 ```csharp
 [Manager("MasterManager")]
@@ -180,34 +215,6 @@ public class ManagerMaster : ManagerBase
     protected override void Update()
     {
         Lucifer.Log(this, "Master is running....");
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-    }
-}
-```
-
----
-
-## Step 5 — Add a Background Service
-
-For periodic maintenance tasks that don't need a dedicated thread, use a Service. It runs on a fixed timer and borrows a thread pool thread only for the duration of each `Update()` call.
-
-```csharp
-[Service("CleanupService")]
-internal sealed class CleanupService : ServiceBase
-{
-    protected override void Setup()
-    {
-        Interval = TimeSpan.FromMinutes(30);
-    }
-
-    protected override void Update()
-    {
-        // periodic cleanup logic
-        Lucifer.Log(this, "Cleanup running....");
     }
 
     protected override void Dispose(bool disposing)

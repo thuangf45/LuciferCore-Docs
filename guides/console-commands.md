@@ -1,6 +1,6 @@
 # Console Commands
 
-LuciferCore ships with an interactive console host that activates when `Lucifer.Run()` is called. It provides built-in lifecycle commands and a simple API for defining your own.
+LuciferCore ships with an interactive console host that activates when `Lucifer.CMD("/run"u8)` is called. It provides built-in lifecycle commands and a simple API for defining your own.
 
 ---
 

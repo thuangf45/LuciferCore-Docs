@@ -86,8 +86,6 @@ internal class ChatHandler : RouteHandler
     public ConcurrentQueue<(byte[], long, long)> Messages = new();
 
     [WsMessage("GetMessage")]
-    [Safe("")]
-    [RateLimiter(10, 1)]
     [Authorize(UserRole.Guest)]
     public void GetMessage([Session] ChatSession session, [Data] PacketModel data)
     {
@@ -96,8 +94,6 @@ internal class ChatHandler : RouteHandler
     }
 
     [WsMessage("ChatMessage")]
-    [Safe("")]
-    [RateLimiter(20, 1)]
     [Authorize(UserRole.Guest)]
     public void SendChat([Session] ChatSession session, [Data] PacketModel data)
     {
@@ -106,8 +102,6 @@ internal class ChatHandler : RouteHandler
     }
 
     [WsMessage("Default")]
-    [Safe("")]
-    [RateLimiter(20, 1)]
     [Authorize(UserRole.Guest)]
     public void Default([Session] ChatSession session, [Data] PacketModel data)
         => throw new NotImplementedException();
@@ -123,30 +117,22 @@ internal class ChatHandler : RouteHandler
 internal class UserHandler : RouteHandler
 {
     [HttpGet("")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
-    [RateLimiter(100, 1)]
     protected void GetHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
     [HttpPost("")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
-    [RateLimiter(100, 1)]
     protected void PostHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
     [HttpPut("")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
-    [RateLimiter(100, 1)]
     protected void PutHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 
     [HttpDelete("")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
-    [RateLimiter(100, 1)]
     protected void DeleteHandle([Data] RequestModel request, [Session] HttpsSession session)
         => throw new NotImplementedException();
 }
@@ -162,7 +148,7 @@ public class MyPacket : IRoutable
     public string Action { get; set; } = "";
     public byte[] Payload { get; set; } = [];
 
-    // Produces the route key: "MSG:/v1/myprotocol/{Action}"
+    // Produces the route key: "MSG:/v1/myprotocol/Action"
     public ReadOnlySpan<byte> MethodRoute => "MSG"u8;
     public ReadOnlySpan<byte> UrlRoute    => Encoding.UTF8.GetBytes($"/v1/myprotocol/{Action}");
 }
@@ -171,7 +157,6 @@ public class MyPacket : IRoutable
 internal class MyHandler : RouteHandler
 {
     [WsMessage("Action")]
-    [Safe("")]
     public void Handle([Data] MyPacket packet, [Session] MySession session) { ... }
 }
 ```

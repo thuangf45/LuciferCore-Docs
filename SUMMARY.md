@@ -1,9 +1,7 @@
 # Table of Contents
 
-## Overview
-* [Introduction](getting-started/README.md)
-
 ## Getting Started
+* [Introduction](README.md)
 * [Installation](getting-started/installation.md)
 * [Quick Start](getting-started/quick-start.md)
 * [Entry Point](getting-started/entry-point.md)
@@ -13,7 +11,6 @@
 * [Configuring a Session](guides/configuring-a-session.md)
 * [Defining a Handler](guides/handler.md)
 * [Manager System](guides/manager-system.md)
-* [Service System](guides/service-system.md)
 * [Console Commands](guides/console-commands.md)
 
 ## API Reference
@@ -21,7 +18,6 @@
     * [Server](api-reference/attribute/attr-server.md)
     * [Handler](api-reference/attribute/attr-handler.md)
     * [Manager](api-reference/attribute/attr-manager.md)
-    * [Service](api-reference/attribute/attr-service.md)
     * [Config](api-reference/attribute/attr-config.md)
     * [RateLimiter](api-reference/attribute/attr-ratelimiter.md)
     * [Authorize](api-reference/attribute/attr-authorize.md)
@@ -33,13 +29,12 @@
     * [RouteHandler](api-reference/handler/route-handler.md)
 * Managers
     * [ManagerBase](api-reference/manager/manager-base.md)
-    * [ManagerGuide](api-reference/manager/manager-guide.md)
+    * [ManagerGuide](api-reference/manager/manager-guide.md)7
 * Models
     * [HttpModel](api-reference/model/http-model.md)
     * [RequestModel](api-reference/model/request-model.md)
     * [ResponseModel](api-reference/model/response-model.md)
     * [Custom Http Model](api-reference/model/custom-http-models.md)
-    * [PacketModel](api-reference/model/packet-model.md)
 
 * NetCoreServer
     * Transport
@@ -66,9 +61,6 @@
             * [UdsServer](api-reference/netcoreserver/Transport/Uds/uds-server.md)
             * [UdsSession](api-reference/netcoreserver/Transport/Uds/uds-session.md)
             * [UdsClient](api-reference/netcoreserver/Transport/Uds/uds-client.md)
-    * Protocols
-        * [HTTP Protocol](api-reference/netcoreserver/Protocol/http-protocol.md)
-        * [WebSocket Protocol](api-reference/netcoreserver/Protocol/ws-protocol.md)
     * Servers
         * [HttpServer](api-reference/netcoreserver/Server/server-http.md)
         * [HttpsServer](api-reference/netcoreserver/Server/server-https.md)
@@ -87,9 +79,6 @@
 
 * Pools
     * [PooledObject](api-reference/pool/pooled-object.md)
-* Services
-    * [Service Base](api-reference/service/service-base.md)
-    * [Service Guide](api-reference/service/service-guide.md)
 * Storage
     * [Buffer](api-reference/storage/storage-buffer.md)
     * [FileCache](api-reference/storage/storage-filecache.md)

@@ -13,7 +13,7 @@ Lucifer.CMD("/run"u8);
 ```
 
 This single call:
-- Auto-discovers all classes decorated with `[Server]`, `[Handler]`, and `[Manager]`
+- Auto-discovers all classes decorated with `[Server]`, `[Handler]`, `[Middleware]`, `[Manager]` and `[Route]`
 - Wires up async dispatch pipelines
 - Starts all servers and managers
 - Launches the interactive console host
@@ -24,7 +24,7 @@ This single call:
 
 ## Built-in Console Commands
 
-Once `Lucifer.Run()` is called, the console host is active with the following built-in commands:
+Once `Lucifer.CMD("/run"u8)` is called, the console host is active with the following built-in commands:
 
 | Command | Description |
 |---|---|
@@ -37,9 +37,6 @@ Once `Lucifer.Run()` is called, the console host is active with the following bu
 | `/start managers` | Start all `[Manager]`-decorated instances |
 | `/stop managers` | Stop all `[Manager]`-decorated instances |
 | `/restart managers` | Restart all `[Manager]`-decorated instances |
-| `/start services` | Start all `[Service]`-decorated instances |
-| `/stop services` | Stop all `[Service]`-decorated instances |
-| `/restart services` | Restart all `[Service]`-decorated instances |
 
 ---
 

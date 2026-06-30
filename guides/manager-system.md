@@ -80,11 +80,6 @@ public class ManagerMaster : ManagerBase
     {
         Lucifer.Log(this, "Master is running....");
     }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-    }
 }
 ```
 

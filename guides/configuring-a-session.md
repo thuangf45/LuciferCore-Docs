@@ -29,11 +29,11 @@ Override the appropriate `On*` methods and forward directly to `Lucifer.Dispatch
 ```csharp
 // Forward incoming WebSocket binary frames
 protected override void OnWsReceived(byte[] buffer, long offset, long size)
-    => Lucifer.Dispatch(this, buffer, offset, size);
+    => Lucifer.Route(buffer, offset, size, this);
 
 // Forward incoming HTTP requests
 protected override void OnReceivedRequest(RequestModel request)
-    => Lucifer.Dispatch(this, request);
+    => Lucifer.Route(request, this);
 ```
 
 `Lucifer.Dispatch()` routes each message through the zero-allocation pipeline to the correct handler method based on the message type or HTTP route.
@@ -51,11 +51,11 @@ public partial class ChatSession : WssSession
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnWsReceived(byte[] buffer, long offset, long size)
-        => Lucifer.Dispatch(this, buffer, offset, size);
+        => Lucifer.Route(buffer, offset, size, this);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnReceivedRequest(RequestModel request)
-        => Lucifer.Dispatch(this, request);
+        => Lucifer.Route(request, this);
 }
 ```
 
