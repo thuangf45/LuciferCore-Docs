@@ -21,21 +21,17 @@ Decorate → Implement → Run
 
 ## Core Pillars
 
-### Zero-Allocation Buffer-Model
+### Buffer-Model Architecture (DOD)
 
-LuciferCore treats memory as a contiguous, virtualized pool. Data flows from raw socket bytes to your handler through a pre-pooled, zero-copy pathway — virtually eliminating GC pressure.
+Data is managed through a **Buffer-Model architecture** built on Data-Oriented Design principles. By combining advanced **ObjectPool** and **ArrayPool** strategies with **SIMD**-accelerated processing, LuciferCore achieves near **zero-allocation** execution, blazing-fast throughput, minimal RAM footprint, and excellent **cache locality** — keeping your hot data close to the CPU at all times.
 
-### Data-Oriented Design (DOD)
+### Event-Driven Networking on NetCoreServer
 
-By focusing on data streams rather than object hierarchies, LuciferCore minimizes pointer chasing and memory fragmentation. Your data is almost always hot in **L1/L2/L3 Cache**.
+The networking layer is rebuilt on top of **NetCoreServer**, harnessing .NET's native **async network events** combined with a DOD-first execution model. The result is an event-driven pipeline that's extremely fast, highly concurrent, and resistant to RAM bloat under load.
 
-### Hardware-Scale Parallelism
+### Modulithic, DLL-Extensible System
 
-Built on fully asynchronous, lock-free pathways using **Async Channels** and **Lock-free Queues**. The engine saturates all available CPU cores without contention or context-switching.
-
-### Attribute-Driven Routing
-
-High-speed dispatching via `[Server]`, `[Handler]`, `[WsMessage]`, `[Middleware]` and HTTP verb attributes — no manual routing tables, no reflection overhead at runtime.
+The application architecture follows a **Modulith** design, letting you extend functionality simply by dropping in new DLLs. Modules register independently through attributes like `[Server]`, `[Manager]`, `[Middleware]`, `[Handler]`, and `[Route]`, all wired together by the performance core — with no intermediate worker scheduling layer. Contracts are easy to inherit and extend, giving you near-unmatched flexibility and scalability while keeping performance high. You just focus on writing your business logic.
 
 ---
 
