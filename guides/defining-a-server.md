@@ -1,10 +1,46 @@
 # Defining a Server
 
-A **Server** in LuciferCore is a class that extends `WssServer` (or `HttpsServer`) and is decorated with the `[Server]` attribute. LuciferCore auto-discovers and instantiates it at startup.
+In LuciferCore, a server is any class that:
+
+1. Inherits a supported server base class
+2. Uses the `[Server]` attribute
+
+LuciferCore auto-discovers and creates server instances at startup.
 
 ---
 
-## The `[Server]` Attribute
+## LuciferCore supports many server types
+
+LuciferCore is not limited to only HTTP/WS servers.
+
+You can build servers on top of different protocol layers, for example:
+- `TcpServer`
+- `SslServer`
+- `HttpServer` / `HttpsServer`
+- `WsServer` / `WssServer`
+- and future protocol servers added by the ecosystem
+
+> To choose the right base class, see the API Reference for server/session types (NetCoreServer-based hierarchy).
+
+---
+
+## Layered transport model
+
+LuciferCore follows a layered transport model.  
+Common stacks include:
+
+- `Transport -> TCP -> HTTP -> WS`
+- `Transport -> SSL -> HTTPS -> WSS`
+
+Higher layers can serve multiple protocol phases:
+- A WS/WSS endpoint can still process HTTP/HTTPS traffic before WebSocket handshake.
+- You can hook packets/events at lower layers (TCP/SSL) or higher layers (HTTP/WS), based on your needs.
+
+This gives you one server pipeline that can handle mixed traffic and protocol transitions cleanly.
+
+---
+
+## `[Server]` attribute
 
 ```csharp
 [Server("ChatServer", 8443)]
@@ -13,14 +49,14 @@ public class ChatServer : WssServer { ... }
 
 | Parameter | Type | Description |
 |---|---|---|
-| `name` | `string` | A human-readable identifier for this server |
-| `port` | `int` | The port the server listens on |
+| `name` | `string` | Server name (display/identification) |
+| `port` | `int` | Listening port |
 
 ---
 
-## Binding Configuration with `[Config]`
+## Bind config with `[Config]`
 
-Use `[Config]` on static properties to bind values from your environment or configuration source — no hardcoding required.
+Use `[Config]` on static properties to avoid hardcoded values.
 
 ```csharp
 [Config("WWW", "assets/client/dev")]
@@ -33,16 +69,16 @@ private static string s_certPath { get; set; } = string.Empty;
 private static string s_certPassword { get; set; } = string.Empty;
 ```
 
-| Parameter | Description |
+| Parameter | Meaning |
 |---|---|
-| Key | The configuration key to look up |
-| Default value | Fallback if the key is not found |
+| Key | Config key |
+| Default value | Used if key is missing |
 
 ---
 
-## Static Content & URL Mapping
+## Static files and URL mapping (HTTP-capable layers)
 
-Serve static files and define URL-to-file mappings directly in the constructor:
+If your chosen base class supports HTTP/HTTPS behavior, you can configure static content and mappings:
 
 ```csharp
 AddStaticContent(_staticContentPath);
@@ -50,19 +86,17 @@ Cache.Freeze();
 
 Mapping = new(true)
 {
-    { "/",          "/index.html"     },
+    { "/", "/index.html" },
     { "/dashboard", "/dashboard.html" }
 };
 Mapping.Freeze();
 ```
 
-Calling `Cache.Freeze()` and `Mapping.Freeze()` locks these structures, making them read-only and safe for concurrent access.
+`Freeze()` makes structures read-only and safer for concurrent access.
 
 ---
 
-## SSL Context
-
-### Development (Auto-generated)
+## SSL context (for SSL/HTTPS/WSS stacks)
 
 ```csharp
 public static SslContext CreateSslContext()
@@ -76,11 +110,12 @@ public static SslContext CreateSslContext()
 }
 ```
 
-In `DEBUG` builds, `CreateDevelopmentContext()` generates a self-signed certificate automatically. In `RELEASE` builds, a real `.pfx` certificate is loaded.
+- `DEBUG`: development certificate
+- `RELEASE`: real `.pfx` certificate
 
 ---
 
-## Full Example
+## Example (WSS server)
 
 ```csharp
 [Server("ChatServer", 8443)]
@@ -94,8 +129,8 @@ public class ChatServer : WssServer
 
         Mapping = new(true)
         {
-            { "/",          "/index.html"     },
-            { "/404",       "/404.html"       }
+            { "/", "/index.html" },
+            { "/404", "/404.html" }
         };
         Mapping.Freeze();
     }
@@ -127,5 +162,7 @@ public class ChatServer : WssServer
     }
 }
 ```
+
+> This is one example only. Check API Reference for other server base classes and protocol stacks.
 
 ---

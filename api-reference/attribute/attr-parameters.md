@@ -2,15 +2,17 @@
 
 **Namespace:** `LuciferCore.Attributes`
 
-Parameter attributes mark handler method parameters so the dispatch pipeline knows how to inject the correct values. They carry no runtime cost beyond startup wiring.
+Parameter attributes tell the dispatcher what to inject into handler method parameters.
 
-There are two parameter attributes: `[Session]` and `[Data]`.
+Two attributes:
+- `[Session]`
+- `[Data]`
 
 ---
 
 ## `[Session]`
 
-Marks a method parameter as the active client session. The dispatch pipeline injects the session instance that received the incoming message or request.
+Marks a parameter as the current client session.
 
 ### Declaration
 
@@ -21,13 +23,11 @@ public class SessionAttribute : Attribute { }
 
 ### Usage
 
-Declare the parameter with your concrete session type (not the base class) so you have direct access to session-specific members:
+Use your concrete session type for easier access to custom fields/methods.
 
 ```csharp
-// WebSocket handler
 public void SendChat([Session] ChatSession session, [Data] PacketModel data) { ... }
 
-// HTTP handler
 protected void GetHandle([Data] RequestModel request, [Session] HttpsSession session) { ... }
 ```
 
@@ -35,7 +35,7 @@ protected void GetHandle([Data] RequestModel request, [Session] HttpsSession ses
 
 ## `[Data]`
 
-Marks a method parameter as the incoming payload. The dispatch pipeline injects the deserialized message or request model that was received.
+Marks a parameter as incoming payload.
 
 ### Declaration
 
@@ -46,43 +46,42 @@ public class DataAttribute : Attribute { }
 
 ### Usage
 
-The parameter type depends on the handler protocol:
+`[Data]` type depends on route/protocol:
 
-| Protocol | Parameter Type | Description |
+| Input type | Data type | Meaning |
 |---|---|---|
-| WebSocket | `PacketModel` | Binary WebSocket frame payload |
-| HTTP | `RequestModel` | Full HTTP request including headers, body, and route |
+| Message route (WS/WSS/custom) | `PacketModel` or custom `IRoutable` | Message payload |
+| HTTP route | `RequestModel` | HTTP request |
 
 ```csharp
-// WebSocket handler — PacketModel
 public void SendChat([Session] ChatSession session, [Data] PacketModel data)
 {
-    using var _ = data; // return buffer to pool after use
+    using var _ = data;
     ((WssServer)session.Server).MulticastBinary(data.Buffer);
 }
 
-// HTTP handler — RequestModel
 protected void PostHandle([Data] RequestModel request, [Session] HttpsSession session) { ... }
 ```
 
+> For `PacketModel`, use `using var _ = data;` after reading `data.Buffer` to return buffer to pool.
+
 ---
 
-## Parameter Order
+## Parameter order
 
-Parameter order in handler method signatures is **flexible** — the dispatch pipeline identifies each parameter by its attribute, not its position. Both orderings are valid:
+Order is flexible.  
+Dispatcher uses attributes, not position.
 
 ```csharp
-// Session first, then Data
 public void Handle([Session] ChatSession session, [Data] PacketModel data) { ... }
 
-// Data first, then Session
 public void Handle([Data] PacketModel data, [Session] ChatSession session) { ... }
 ```
 
 ---
 
-## Remarks
+## Notes
 
-- Both attributes target `AttributeTargets.Parameter` only and have no effect on other targets.
-- Always call `using var _ = data;` on `PacketModel` when you have finished reading `data.Buffer`. This returns the underlying buffer to the pool and prevents memory leaks.
-- Use your concrete session type (e.g. `ChatSession`) rather than the base type (e.g. `WssSession`) to avoid unnecessary casts inside the handler.
+- Both attributes are for parameters only.
+- Use concrete session type (example: `ChatSession`) instead of generic base type when possible.
+- `[Data]` is extensible: any custom type implementing `IRoutable` can be injected.

@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Client`
 
-Secure HTTPS client. Extends `SslClient` with HTTP request building and incremental response parsing over TLS.
+`HttpsClient` is the secure HTTP client class.  
+It extends `SslClient` and adds HTTP request/response handling over TLS.
 
 ```csharp
 public class HttpsClient : SslClient
@@ -27,8 +28,8 @@ public HttpsClient(SslContext context, EndPoint endpoint, string address, int po
 
 | Property | Type | Description |
 |---|---|---|
-| `Request` | `RequestModel` | The current request, lazily rented from the pool (`Lucifer.Rent<RequestModel>()`) on first access |
-| `Response` | `ResponseModel` | The current response, lazily rented from the pool on first access |
+| `Request` | `RequestModel` | Current request object |
+| `Response` | `ResponseModel` | Current response object |
 
 ---
 
@@ -42,34 +43,25 @@ bool SendRequestAsync()
 bool SendRequestAsync(RequestModel request)
 ```
 
-`SendRequest()` / `SendRequestAsync()` send the client's current `Request`. Both overloads that take an explicit `RequestModel` automatically add a `Host` header (set to `Address`) before sending.
-
-There is no built-in `Task`-based await API, timeout handling, or HTTP-verb shortcut methods (`SendGetRequest`, etc.) in this class — identical send surface to `HttpClient`, just carried over TLS via `SslClient`.
+- Sends current request or a provided request
+- `Host` header is set automatically from `Address`
+- `SendRequestAsync(...)` is non-blocking
 
 ---
 
-## Lifecycle Hooks
-
-Override in your subclass:
+## Main hooks to override
 
 | Method | When called |
 |---|---|
-| `OnReceivedResponseHeader(ResponseModel)` | Response headers parsed. Default implementation is empty |
-| `OnReceivedResponse(ResponseModel)` | **Primary hook** — full response body received. Default implementation is empty |
-| `OnReceivedResponseError(ResponseModel, string)` | Header or body parse error — the client disconnects immediately after |
+| `OnReceivedResponseHeader(ResponseModel)` | Response header is parsed |
+| `OnReceivedResponse(ResponseModel)` | Full response is ready (main handler) |
+| `OnReceivedResponseError(ResponseModel, string)` | Response parse error |
 
-> **Not verified in this file:** whether sends are held/rejected until the TLS handshake completes, or whether there's an `OnConnectedOrHandshaked`-style hook. That would live in `SslClient`, not here — check that source before documenting it.
-
----
-
-## Receive / Disconnect Behavior
-
-- `OnReceived` parses incrementally: header first (fires `OnReceivedResponseHeader`), then body (fires `OnReceivedResponse` and clears `Response` for reuse). A parse error at either stage fires `OnReceivedResponseError`, clears `Response`, and disconnects.
-- `OnDisconnected` flushes a response whose body was still pending (calls `OnReceivedResponse` with the partial response), then disposes and releases both `Request` and `Response` back to the pool before calling `base.OnDisconnected()`.
+`OnReceivedResponse(...)` is the main method for response handling.
 
 ---
 
-## Usage
+## Custom client example
 
 ```csharp
 public class MyHttpsClient : HttpsClient
@@ -89,6 +81,11 @@ client.SendRequest();
 
 ## Inherited API
 
-TLS state and connect/disconnect are inherited from `SslClient`. All base client methods are inherited from `ClientTransport`.
+`HttpsClient` adds HTTPS request/response behavior.  
+Other APIs are inherited from `SslClient` / `ClientTransport`, including:
 
----
+- TLS handshake/connect/disconnect
+- send/receive base methods
+- lifecycle hooks/events
+- metrics/options access
+- `Dispose()`

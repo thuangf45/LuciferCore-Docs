@@ -2,9 +2,13 @@
 
 **Namespace:** `LuciferCore.Attributes`
 
-Registers a class as a network server. LuciferCore auto-discovers all `[Server]`-decorated classes at startup and instantiates them with the specified port.
+Marks a class as a server.
 
-The decorated class must extend `WssServer` or `HttpsServer`.
+LuciferCore auto-discovers all classes with `[Server]` at startup and creates them with the given port.
+
+> The server base type is not only `WssServer`/`HttpsServer`.  
+> You can use other supported server bases in the transport stack (TCP/SSL/HTTP/WS/WSS and future extensions).  
+> See API Reference for available server types.
 
 ---
 
@@ -23,21 +27,21 @@ public class ServerAttribute : Attribute
 public ServerAttribute(string name, int port)
 ```
 
-| Parameter | Type | Description |
+| Parameter | Type | Meaning |
 |---|---|---|
-| `name` | `string` | Human-readable identifier for this server instance |
-| `port` | `int` | The port the server listens on |
+| `name` | `string` | Server name |
+| `port` | `int` | Listening port |
 
 ---
 
 ## Properties
 
-| Property | Type | Description |
+| Property | Type | Meaning |
 |---|---|---|
-| `Name` | `ByteString` | UTF-8 encoded server name |
+| `Name` | `ByteString` | UTF-8 server name |
 | `Port` | `int` | Listening port |
 
-> `ByteString` is LuciferCore's zero-allocation UTF-8 string type. Names are encoded once at startup and never reallocated.
+`ByteString` is a low-allocation UTF-8 type used by LuciferCore.
 
 ---
 
@@ -55,9 +59,9 @@ public class ChatServer : WssServer
 
 ---
 
-## Remarks
+## Notes
 
-- Only one `[Server]` attribute is allowed per class (`AllowMultiple = false`).
-- The attribute is not inherited (`Inherited = false`) — subclasses are not automatically registered.
-- The server name is used in console commands (`/start servers`, `/stop servers`) and log output.
-- Use `[Config]` on static properties within the same class to bind configurable values such as certificate paths and static content directories. See [[Config]](attr-config.md).
+- One `[Server]` per class (`AllowMultiple = false`).
+- Attribute is not inherited (`Inherited = false`).
+- Server name is used in logs and server management commands.
+- Use `[Config]` in the same class for values like cert path and static folder.

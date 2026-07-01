@@ -2,9 +2,11 @@
 
 **Namespace:** `LuciferCore.Attributes`
 
-Registers a class as a background manager. LuciferCore auto-discovers all `[Manager]`-decorated classes and starts them as part of the async loop system when `Lucifer.Run()` is called.
+Marks a class as a background manager.
 
-The decorated class must extend `ManagerBase`.
+LuciferCore auto-discovers all `[Manager]` classes and runs them in the manager loop system.
+
+The class must inherit `ManagerBase`.
 
 ---
 
@@ -23,17 +25,17 @@ public class ManagerAttribute : Attribute
 public ManagerAttribute(string name)
 ```
 
-| Parameter | Type | Description |
+| Parameter | Type | Meaning |
 |---|---|---|
-| `name` | `string` | Human-readable identifier for this manager instance |
+| `name` | `string` | Manager name |
 
 ---
 
 ## Properties
 
-| Property | Type | Description |
+| Property | Type | Meaning |
 |---|---|---|
-| `Name` | `ByteString` | UTF-8 encoded manager name |
+| `Name` | `ByteString` | UTF-8 manager name |
 
 ---
 
@@ -45,37 +47,23 @@ public class ManagerMaster : ManagerBase
 {
     protected override void Setup()
     {
-        TimeDelay  = 1000; // ms between each Update()
-        ErrorDelay = 1000; // ms cooldown after an exception
+        // one-time setup
     }
 
     protected override void Update()
     {
-        Lucifer.Log(this, "Master is running....");
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
+        Lucifer.Log(this, "Master is running...");
     }
 }
 ```
 
 ---
 
-## Lifecycle
+## Notes
 
-| Method | When called |
-|---|---|
-| `Setup()` | Once, immediately when the manager starts |
-| `Update()` | Repeatedly, every `TimeDelay` milliseconds |
-| `Dispose(bool)` | Once, when the manager is stopped or the host shuts down |
-
----
-
-## Remarks
-
-- Only one `[Manager]` attribute is allowed per class (`AllowMultiple = false`).
-- The attribute is not inherited (`Inherited = false`) — subclasses must declare their own attribute.
-- The manager name is used in console commands (`/start managers`, `/stop managers`, `/restart managers`) and log output.
-- If `Update()` throws an unhandled exception, execution pauses for `ErrorDelay` milliseconds before resuming. Use `[Safe]` on individual methods within a manager if finer-grained error handling is needed.
+- One `[Manager]` per class (`AllowMultiple = false`).
+- Not inherited (`Inherited = false`), so child class must declare its own `[Manager]`.
+- Manager name is used in logs and manager console commands:
+  - `/start managers`
+  - `/stop managers`
+  - `/restart managers`

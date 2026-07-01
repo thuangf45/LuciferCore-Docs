@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.SSL`
 
-TLS/SSL server. Extends `ServerTransport` with an `SslContext` and automatically creates `SslSession` instances for each connected client.
+`SslServer` is the TLS/SSL server class.  
+It extends `ServerTransport` and creates `SslSession` for each client.
 
 ```csharp
 public class SslServer : ServerTransport
@@ -19,27 +20,23 @@ public SslServer(SslContext context, IPEndPoint endpoint)
 public SslServer(SslContext context, DnsEndPoint endpoint)
 ```
 
-Each overload forwards `address`/`port`/`endpoint` to the matching `ServerTransport` base constructor, then assigns `Context`.
+Each constructor sets server endpoint + SSL context.
 
 ---
 
-## Properties
+## Property
 
 | Property | Type | Description |
 |---|---|---|
-| `Context` | `SslContext` | Get-only; the SSL context used for all sessions on this server, set once at construction |
+| `Context` | `SslContext` | SSL context used by all sessions |
 
 ---
 
-## Session Factory
+## Custom session type
 
-`SslServer` overrides `CreateSession()` to return `SslSession`:
+`SslServer` creates `SslSession` by default.
 
-```csharp
-protected override SslSession CreateSession() => new(this);
-```
-
-Override this in your subclass to return a custom session type:
+Override `CreateSession()` to use your own session type:
 
 ```csharp
 public class ChatServer : SslServer
@@ -55,6 +52,12 @@ public class ChatServer : SslServer
 
 ## Inherited API
 
-All server lifecycle, socket options, session management, and multicast methods are inherited from `ServerTransport`.
+`SslServer` adds SSL context support.  
+Other APIs are inherited from `ServerTransport`, including:
 
----
+- `Start()`, `Stop()`, `Restart()`
+- session management
+- `FindSession(...)`, `DisconnectAll()`
+- `Multicast<T>(...)`
+- lifecycle hooks/events
+- `Dispose()`

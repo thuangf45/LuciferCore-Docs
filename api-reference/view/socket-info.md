@@ -2,103 +2,120 @@
 
 **Namespace:** `LuciferCore.View`
 
-Plain data structs holding server/session identity, network metrics, and socket configuration.
+These are plain data structs for:
+- server/session identity
+- network metrics
+- socket options
 
 ---
 
-## ServerInfo
+## `ServerInfo`
 
 ```csharp
 public struct ServerInfo
 ```
 
-Represents server information.
+Represents server-level info.
 
-| Field | Type | Description |
+| Field | Type | Meaning |
 |---|---|---|
-| `Id` | `Guid` | Unique server ID |
-| `Port` | `int` | Server port number |
-| `Metric` | `MetricNetwork` | Network metrics for the server |
-| `Options` | `SocketOptions` | Socket options for the server |
+| `Id` | `Guid` | server unique ID |
+| `Port` | `int` | server port |
+| `Metric` | `MetricNetwork` | server network metrics |
+| `Options` | `SocketOptions` | server socket options |
+
+Methods:
 
 ```csharp
-public ServerInfo()        // constructs and initializes
-public void Initialize()   // resets Metric and Options to defaults
+public ServerInfo()
+public void Initialize()
 ```
+
+`Initialize()` resets `Metric` and `Options` to defaults.
 
 ---
 
-## SessionInfo
+## `SessionInfo`
 
 ```csharp
 public struct SessionInfo
 ```
 
-Represents session information.
+Represents session-level info.
 
-| Field | Type | Description |
+| Field | Type | Meaning |
 |---|---|---|
-| `Id` | `long` | Unique session ID |
-| `Metric` | `MetricNetwork` | Network metrics for the session |
-| `Options` | `SocketOptions` | Socket options for the session |
+| `Id` | `long` | session unique ID |
+| `Metric` | `MetricNetwork` | session network metrics |
+| `Options` | `SocketOptions` | session socket options |
+
+Methods:
 
 ```csharp
-public SessionInfo()       // constructs and initializes
-public void Initialize()   // resets Metric and Options to defaults
+public SessionInfo()
+public void Initialize()
 ```
+
+`Initialize()` resets `Metric` and `Options` to defaults.
 
 ---
 
-## MetricNetwork
+## `MetricNetwork`
 
 ```csharp
 public struct MetricNetwork
 ```
 
-Represents network metrics for a server or session.
+Network counters for server/session.
 
-| Field | Type | Description |
+| Field | Type | Meaning |
 |---|---|---|
-| `BytesPending` | `long` | Bytes pending to send |
-| `BytesSending` | `long` | Bytes currently being sent |
-| `BytesSent` | `long` | Total bytes sent |
-| `BytesReceived` | `long` | Total bytes received |
-| `DatagramsReceived` | `long` | Total datagrams received by server |
+| `BytesPending` | `long` | pending send bytes |
+| `BytesSending` | `long` | bytes currently sending |
+| `BytesSent` | `long` | total sent bytes |
+| `BytesReceived` | `long` | total received bytes |
+| `DatagramsReceived` | `long` | total received datagrams (server) |
+
+Methods:
 
 ```csharp
-public MetricNetwork()     // constructs and initializes (all fields = 0)
-public void Initialize()   // resets all fields to 0
+public MetricNetwork()
+public void Initialize()
 ```
+
+`Initialize()` sets all counters to `0`.
 
 ---
 
-## SocketOptions
+## `SocketOptions`
 
 ```csharp
 public struct SocketOptions
 ```
 
-Represents socket options.
+Socket configuration options.
 
-| Field | Type | Default | Description |
+| Field | Type | Default | Meaning |
 |---|---|---|---|
-| `OptionAcceptorBacklog` | `int` | `1024` | Acceptor backlog size |
-| `OptionDualMode` | `bool` | `false` | Dual-mode socket (IPv4 and IPv6 support) |
-| `OptionKeepAlive` | `bool` | `false` | SO_KEEPALIVE socket option |
-| `OptionTcpKeepAliveTime` | `int` | `-1` | Keep-alive time in seconds (-1 = disabled) |
-| `OptionTcpKeepAliveInterval` | `int` | `-1` | Keep-alive interval in seconds (-1 = disabled) |
-| `OptionTcpKeepAliveRetryCount` | `int` | `-1` | Keep-alive retry count (-1 = disabled) |
-| `OptionNoDelay` | `bool` | `false` | NODELAY (disables Nagle's algorithm) |
-| `OptionReuseAddress` | `bool` | `false` | SO_REUSEADDR socket option |
-| `OptionExclusiveAddressUse` | `bool` | `false` | SO_EXCLUSIVEADDRUSE socket option |
-| `OptionReceiveBufferSize` | `int` | `8192` | Receive buffer size in bytes |
-| `OptionSendBufferSize` | `int` | `8192` | Send buffer size in bytes |
-| `OptionReceiveBufferLimit` | `int` | `0` | Receive buffer limit (0 = unlimited) |
-| `OptionSendBufferLimit` | `int` | `0` | Send buffer limit (0 = unlimited) |
+| `OptionAcceptorBacklog` | `int` | `1024` | accept backlog |
+| `OptionDualMode` | `bool` | `false` | IPv4+IPv6 dual mode |
+| `OptionKeepAlive` | `bool` | `false` | keepalive enabled |
+| `OptionTcpKeepAliveTime` | `int` | `-1` | keepalive time (sec) |
+| `OptionTcpKeepAliveInterval` | `int` | `-1` | keepalive interval (sec) |
+| `OptionTcpKeepAliveRetryCount` | `int` | `-1` | keepalive retry count |
+| `OptionNoDelay` | `bool` | `false` | disable Nagle |
+| `OptionReuseAddress` | `bool` | `false` | SO_REUSEADDR |
+| `OptionExclusiveAddressUse` | `bool` | `false` | SO_EXCLUSIVEADDRUSE |
+| `OptionReceiveBufferSize` | `int` | `8192` | recv buffer size |
+| `OptionSendBufferSize` | `int` | `8192` | send buffer size |
+| `OptionReceiveBufferLimit` | `int` | `0` | recv limit (`0` = unlimited) |
+| `OptionSendBufferLimit` | `int` | `0` | send limit (`0` = unlimited) |
+
+Methods:
 
 ```csharp
-public SocketOptions()     // constructs and initializes with default values
-public void Initialize()   // resets all fields to the default values above
+public SocketOptions()
+public void Initialize()
 ```
 
----
+`Initialize()` restores all defaults above.

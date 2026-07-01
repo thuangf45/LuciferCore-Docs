@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Server`
 
-Plain WebSocket server (unencrypted). Extends `HttpServer` — handles WebSocket multicast and session close APIs.
+`WsServer` is the plain WebSocket server class (no TLS).  
+It extends `HttpServer` and adds WebSocket multicast + close-all methods.
 
 ```csharp
 public class WsServer : HttpServer
@@ -19,13 +20,9 @@ public WsServer(DnsEndPoint endpoint)
 public WsServer(IPEndPoint endpoint)
 ```
 
-All constructors zero-fill the internal `WsSendMask` (4-byte mask used when building outgoing frames).
-
 ---
 
-## WebSocket Multicast
-
-Send a WebSocket frame to all connected sessions in a single pooled allocation. Each method is generic over `T : unmanaged`, so it accepts either `ReadOnlySpan<char>` or `ReadOnlySpan<byte>` (and other unmanaged types via a raw byte-cast fallback):
+## WebSocket multicast API
 
 ```csharp
 bool MulticastText<T>(ReadOnlySpan<T> text) where T : unmanaged
@@ -33,31 +30,29 @@ bool MulticastBinary<T>(ReadOnlySpan<T> data) where T : unmanaged
 bool MulticastPing<T>(ReadOnlySpan<T> data) where T : unmanaged
 ```
 
-- `MulticastText` sends `WS_FIN | WS_TEXT`
-- `MulticastBinary` sends `WS_FIN | WS_BINARY`
-- `MulticastPing` sends `WS_FIN | WS_PING`
-
-Internally, `char` spans are appended into a pooled `Buffer` and sent as UTF-8/text bytes; `byte` spans are sent directly; any other unmanaged type is reinterpreted as bytes via `MemoryMarshal.Cast`.
+- `MulticastText(...)` sends a text frame
+- `MulticastBinary(...)` sends a binary frame
+- `MulticastPing(...)` sends a ping frame
 
 ---
 
-## Close All Sessions
+## Close all sessions
 
 ```csharp
 bool CloseAll<T>(int status = 0, ReadOnlySpan<T> buffer = default) where T : unmanaged
 ```
 
-Single generic method with default parameters (not separate overloads). Sends a WebSocket Close frame (`WS_FIN | WS_CLOSE`) with the given status/payload to all sessions, then calls `DisconnectAll()`.
+Sends a WebSocket close frame to all sessions, then disconnects all.
 
 ---
 
-## Session Factory
+## Custom session type
 
 ```csharp
 protected override WsSession CreateSession() => new(this)
 ```
 
-Override to return a custom session type:
+Example:
 
 ```csharp
 public class MyWsServer : WsServer
@@ -72,6 +67,11 @@ public class MyWsServer : WsServer
 
 ## Inherited API
 
-Static content (`Cache`, `Mapping`, `AddStaticContent`) and all server lifecycle / session management methods are inherited from `HttpServer` / `ServerTransport`.
+`WsServer` adds WebSocket broadcast/close features.  
+Other APIs are inherited from `HttpServer` / `ServerTransport`, including:
 
----
+- `Start()`, `Stop()`, `Restart()`
+- static content (`Cache`, `Mapping`, `AddStaticContent(...)`, ...)
+- session management
+- lifecycle hooks/events
+- `Dispose()`

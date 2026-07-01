@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.SSL`
 
-Configuration container for TLS/SSL connections. Holds the protocol version, certificate(s), and optional validation callback used by `SslServer`, `SslSession`, and `SslClient`.
+`SslContext` stores TLS/SSL settings.  
+It is used by `SslServer`, `SslSession`, and `SslClient`.
 
 ```csharp
 public class SslContext
@@ -13,27 +14,16 @@ public class SslContext
 ## Constructors
 
 ```csharp
-// TLS 1.3 default, no certificate
 public SslContext()
-
-// Specify protocol only
 public SslContext(SslProtocols protocols)
-
-// Protocol + custom validation callback (client-side, no server cert)
 public SslContext(SslProtocols protocols, RemoteCertificateValidationCallback callback)
-
-// Protocol + single certificate
 public SslContext(SslProtocols protocols, X509Certificate certificate)
-
-// Protocol + certificate + validation callback
 public SslContext(SslProtocols protocols, X509Certificate certificate, RemoteCertificateValidationCallback callback)
-
-// Protocol + certificate collection
 public SslContext(SslProtocols protocols, X509Certificate2Collection certificates)
-
-// Protocol + certificate collection + validation callback
 public SslContext(SslProtocols protocols, X509Certificate2Collection certificates, RemoteCertificateValidationCallback callback)
 ```
+
+Use the constructor that matches your need: protocol, cert, cert collection, or validation callback.
 
 ---
 
@@ -41,47 +31,30 @@ public SslContext(SslProtocols protocols, X509Certificate2Collection certificate
 
 | Property | Type | Description |
 |---|---|---|
-| `Protocols` | `SslProtocols` | Enabled TLS/SSL protocol versions |
-| `Certificate` | `X509Certificate` | Primary certificate for server authentication |
-| `Certificates` | `X509Certificate2Collection` | Certificate collection (for SNI or multiple certs) |
-| `CertificateValidationCallback` | `RemoteCertificateValidationCallback` | Custom certificate validation logic. `null` = default OS validation |
-| `ClientCertificateRequired` | `bool` | When `true`, the server requests a client certificate during handshake. Connection is still accepted if the client does not provide one |
+| `Protocols` | `SslProtocols` | TLS/SSL protocol versions |
+| `Certificate` | `X509Certificate` | Main server certificate |
+| `Certificates` | `X509Certificate2Collection` | Certificate list |
+| `CertificateValidationCallback` | `RemoteCertificateValidationCallback` | Custom cert validation callback |
+| `ClientCertificateRequired` | `bool` | Ask client for certificate during handshake |
 
 ---
 
-## `CreateDevelopmentContext()` *(static)*
+## Development helper
 
 ```csharp
 public static SslContext CreateDevelopmentContext()
 ```
 
-Generates a self-signed RSA-2048 / SHA-256 certificate valid for `localhost` and `127.0.0.1`, then returns an `SslContext` with `SslProtocols.None` (OS-negotiated). The certificate is valid for 1 year from creation.
+Creates a self-signed development certificate for local testing.
 
-Used in `DEBUG` builds to avoid requiring a real certificate during development:
-
-```csharp
-public static SslContext CreateSslContext()
-{
-#if DEBUG
-    return SslContext.CreateDevelopmentContext();
-#else
-    var cert = X509CertificateLoader.LoadPkcs12FromFile(s_certPath, s_certPassword);
-    return new(SslProtocols.Tls12, cert);
-#endif
-}
-```
-
-The generated certificate includes:
-
-- `SubjectAlternativeName` for `localhost` and `127.0.0.1`
-- `KeyUsage`: `DigitalSignature` + `KeyEncipherment`
-- `ExtendedKeyUsage`: `ServerAuthentication` (OID `1.3.6.1.5.5.7.3.1`)
+Good for local debug/dev runs.  
+For production, use a real certificate.
 
 ---
 
-## Usage
+## Quick usage
 
-### Production server
+### Server
 
 ```csharp
 var cert = X509CertificateLoader.LoadPkcs12FromFile("server.pfx", "password");
@@ -89,17 +62,17 @@ var context = new SslContext(SslProtocols.Tls12, cert);
 var server = new SslServer(context, IPAddress.Any, 8443);
 ```
 
-### Client with custom validation (e.g. skip cert check in dev)
+### Client with custom validation (dev only)
 
 ```csharp
 var context = new SslContext(
     SslProtocols.Tls12,
-    (sender, cert, chain, errors) => true // accept all — dev only
+    (sender, cert, chain, errors) => true
 );
 var client = new SslClient(context, "127.0.0.1", 8443);
 ```
 
-### Mutual TLS (client certificate required)
+### Mutual TLS
 
 ```csharp
 var context = new SslContext(SslProtocols.Tls13, serverCert)
@@ -109,3 +82,8 @@ var context = new SslContext(SslProtocols.Tls13, serverCert)
 ```
 
 ---
+
+## Notes
+
+- Use strict cert validation in production.
+- `CreateDevelopmentContext()` is for local development/testing.

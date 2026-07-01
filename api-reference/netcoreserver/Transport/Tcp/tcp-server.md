@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.TCP`
 
-Concrete TCP server. Extends `ServerTransport` and creates `TcpSession` instances for each connected client.
+`TcpServer` is the default TCP server class.  
+It extends `ServerTransport` and creates one `TcpSession` per client.
 
 ```csharp
 public class TcpServer : ServerTransport
@@ -19,11 +20,13 @@ public TcpServer(IPEndPoint endpoint)
 public TcpServer(DnsEndPoint endpoint)
 ```
 
+Choose the constructor that matches your address type.
+
 ---
 
-## Session Factory
+## Custom session type
 
-Override `CreateSession()` in your subclass to use a custom session type:
+Override `CreateSession()` in your server class:
 
 ```csharp
 public class MyServer : TcpServer
@@ -38,6 +41,20 @@ public class MyServer : TcpServer
 
 ## Inherited API
 
-All server lifecycle, socket options, session management, and multicast methods are inherited from `ServerTransport`.
+`TcpServer` adds no new public server control methods.
+
+Use inherited APIs from `ServerTransport`, including:
+
+- `Start()`, `Stop()`, `Restart()`
+- accept loop and session management
+- `FindSession(...)`, `DisconnectAll()`
+- `Multicast<T>(...)`
+- lifecycle hooks/events
+- `Dispose()`
 
 ---
+
+## Notes
+
+- Use `TcpServer` as the default TCP server transport.
+- Add app logic by deriving custom server/session classes.

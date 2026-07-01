@@ -2,7 +2,12 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.Core`
 
-Base class for all client-side connections. Extends `SessionTransport` with connect/reconnect logic and client-specific socket setup.
+`ClientTransport` is the base class for client-side transport connections.
+
+It extends `SessionTransport` and adds:
+- connect/reconnect flow
+- client socket setup
+- endpoint identity handling
 
 ```csharp
 public class ClientTransport : SessionTransport
@@ -12,82 +17,103 @@ public class ClientTransport : SessionTransport
 
 ## Construction
 
-`ClientTransport` is built via `internal` constructors — it's not meant to be instantiated directly with arbitrary address/port overloads at the public API surface; a derived/factory type is expected to expose the public client API. The internal constructors accept:
+Constructors are `internal` (typically exposed via derived/factory client type):
 
 ```csharp
 internal ClientTransport(IPAddress address, int port)
 internal ClientTransport(string address, int port)
 internal ClientTransport(IPEndPoint endpoint)
-internal ClientTransport(DnsEndPoint endpoint)   // resolves DNS, prefers IPv4
-internal ClientTransport(EndPoint endpoint, string address, int port) // main constructor
+internal ClientTransport(DnsEndPoint endpoint)
+internal ClientTransport(EndPoint endpoint, string address, int port)
 ```
 
-For `DnsEndPoint`, the original hostname is preserved in `Address` (important for SSL/TLS certificate validation), while `Endpoint` is resolved to a concrete `IPEndPoint` (IPv4 preferred if available).
+For `DnsEndPoint`:
+- `Address` keeps original hostname
+- `Endpoint` resolves to concrete `IPEndPoint` (IPv4 preferred)
 
 ---
 
-## Identity
+## Identity properties
 
-| Property | Type | Description |
+| Property | Type | Meaning |
 |---|---|---|
-| `Address` | `string` | Server address (or original hostname, for DNS-based construction) |
-| `Port` | `int` | Server port |
-| `Endpoint` | `EndPoint` | Resolved network endpoint used to connect |
-| `IsConnecting` | `bool` | `true` while an async connection attempt is in progress |
+| `Address` | `string` | target server address/hostname |
+| `Port` | `int` | target port |
+| `Endpoint` | `EndPoint` | resolved endpoint used for connect |
+| `IsConnecting` | `bool` | async connect in progress flag |
 
 ---
 
-## Connect / Disconnect
+## Connect / reconnect API
 
 ```csharp
-bool Connect()          // synchronous; uses Address/Port/Endpoint set at construction
-bool Disconnect()        // override, delegates to SessionTransport.Disconnect()
-bool Reconnect()         // Disconnect() then Connect()
+bool Connect()
+bool Disconnect()
+bool Reconnect()
 
 bool ConnectAsync()
-bool DisconnectAsync()   // currently synchronous: calls Disconnect() under the hood
-bool ReconnectAsync()    // DisconnectAsync(), busy-waits (Thread.Yield) until !IsConnected, then ConnectAsync()
+bool DisconnectAsync()
+bool ReconnectAsync()
 ```
 
-There is no parameterized public `Connect(address, port)` overload — the target endpoint is fixed at construction time via the internal constructors above.
-
-`Connect()` performs, in order: rent receive/send buffers, set up event args, create the socket (`CreateSocket()`), apply dual-mode setup (`ClientSetUp()`), fire `OnConnecting()`, attempt the connection (`TryConnect()`), apply socket options (`ApplySocketOptions()`), reserve buffer capacity, fire `OnConnected()`, start the first receive (`FirstTryReceive()`), then run `HandleHandshake()`. If anything along the way fails, `Connect()` returns `false` early.
+Notes:
+- endpoint is fixed by constructor (no public `Connect(address, port)` overload)
+- `DisconnectAsync()` currently delegates to sync disconnect
+- `ReconnectAsync()` disconnects, waits until disconnected, then starts async connect
 
 ---
 
-## Socket Options
+## Connect flow (sync)
 
-These are not properties on `ClientTransport` itself — they live on `SessionInfo.Options` and are applied by `ClientSetUp()` / `ApplySocketOptions()` during connect:
+`Connect()` does (high-level):
 
-| `SessionInfo.Options` member | Description |
+1. rent/setup send/receive buffers
+2. create socket (`CreateSocket`)
+3. client socket setup (`ClientSetUp`)
+4. fire `OnConnecting`
+5. execute connect (`TryConnect`)
+6. apply socket options
+7. reserve buffer capacity
+8. fire `OnConnected`
+9. start receive
+10. run handshake logic
+
+If any step fails, returns `false`.
+
+---
+
+## Socket options source
+
+Client socket options come from `SessionInfo.Options`:
+
+| Option | Meaning |
 |---|---|
-| `OptionDualMode` | IPv4+IPv6 dual mode; applied only when `Socket.AddressFamily == InterNetworkV6`, before connecting |
-| `OptionKeepAlive` | Enables TCP keep-alive |
-| `OptionTcpKeepAliveTime` | Keep-alive idle time; applied if `>= 0` |
-| `OptionTcpKeepAliveInterval` | Keep-alive probe interval; applied if `>= 0` |
-| `OptionTcpKeepAliveRetryCount` | Keep-alive probe count; applied if `>= 0` |
-| `OptionNoDelay` | Disables Nagle's algorithm when `true` |
-
-All send/receive options and statistics from `SessionTransport` are also inherited. See [SessionTransport](transport-session.md).
+| `OptionDualMode` | IPv4+IPv6 dual mode (IPv6 socket only) |
+| `OptionKeepAlive` | TCP keepalive |
+| `OptionTcpKeepAliveTime` | keepalive idle threshold |
+| `OptionTcpKeepAliveInterval` | keepalive interval |
+| `OptionTcpKeepAliveRetryCount` | keepalive retry count |
+| `OptionNoDelay` | disable Nagle |
 
 ---
 
-## Overridable Members
-
-For subclasses needing custom connection behavior (e.g. an SSL/TLS client):
+## Overridable members
 
 ```csharp
-protected virtual Socket CreateSocket()              // default: new Socket(Endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
-protected virtual void ClientSetUp()                  // applies OptionDualMode for IPv6 sockets
-protected virtual bool TryConnect()                   // synchronous Socket.Connect(Endpoint); cleans up and fires OnDisconnected() on SocketException
-protected override void ApplySocketOptions()          // applies keep-alive / no-delay options from SessionInfo.Options
-internal override void ProcessConnect(SocketAsyncEventArgs e)  // completion handler for ConnectAsync(); applies options, fires OnConnected(), runs HandleHandshake(), disconnects on handshake failure
+protected virtual Socket CreateSocket()
+protected virtual void ClientSetUp()
+protected virtual bool TryConnect()
+protected override void ApplySocketOptions()
+internal override void ProcessConnect(SocketAsyncEventArgs e)
 ```
 
----
-
-## Inherited API
-
-All send, receive, disconnect, and lifecycle hook methods (`OnConnecting`, `OnConnected`, `OnDisconnecting`, `OnDisconnected`, `OnEmpty`, `HandleHandshake`, etc.) are inherited from `SessionTransport`. See `SessionTransport` for the full reference.
+Use these to customize connect behavior (e.g. TLS clients).
 
 ---
+
+## Inherited behavior
+
+All send/receive/disconnect hooks are inherited from `SessionTransport`, including:
+- lifecycle callbacks
+- async send/receive pipeline
+- socket error handling

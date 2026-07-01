@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.UDS`
 
-Unix Domain Socket (UDS) server-side session. Extends `StreamSessionTransport` — inherits double-buffered async send (main/flush buffer swap) and `SocketAsyncEventArgs`-driven receive. TCP socket options are not applied (`ApplySocketOptions()` is overridden as a no-op).
+`UdsSession` is the Unix Domain Socket server session class.  
+It extends `StreamSessionTransport`.
 
 ```csharp
 public class UdsSession : StreamSessionTransport
@@ -16,20 +17,34 @@ public class UdsSession : StreamSessionTransport
 public UdsSession(UdsServer server)
 ```
 
-Not instantiated directly — returned by `UdsServer.CreateSession()`.
+Created by `UdsServer.CreateSession()`.  
+You usually do not create it manually.
 
 ---
 
-## Socket Options
+## Socket options
 
-```csharp
-protected override void ApplySocketOptions() { } // no-op
-```
+`UdsSession` overrides `ApplySocketOptions()` as empty.  
+TCP-specific socket options are not used for UDS.
 
 ---
 
 ## Inherited API
 
-All send, receive, disconnect, statistics, and lifecycle hook methods are inherited from `StreamSessionTransport` and `SessionTransport`.
+`UdsSession` adds no new public methods.
+
+Use inherited APIs from `StreamSessionTransport` / `SessionTransport`, such as:
+
+- `Send<T>(...)`
+- `SendAsync<T>(...)`
+- `Receive(...)`
+- `Disconnect()`
+- `Dispose()`
+- lifecycle hooks/events
 
 ---
+
+## Notes
+
+- Use `UdsSession` for UDS server connections.
+- Put protocol/app logic in your own derived session class.

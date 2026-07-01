@@ -12,17 +12,14 @@
 * [Defining a Handler](guides/handler.md)
 * [Defining a Middleware](guides/middleware.md)
 * [Manager System](guides/manager-system.md)
-* [Console Commands](guides/console-commands.md)
 
 ## API Reference
 * Attributes
     * [Server](api-reference/attribute/attr-server.md)
     * [Handler](api-reference/attribute/attr-handler.md)
     * [Manager](api-reference/attribute/attr-manager.md)
-    * [Config](api-reference/attribute/attr-config.md)
-    * [RateLimiter](api-reference/attribute/attr-ratelimiter.md)
-    * [Authorize](api-reference/attribute/attr-authorize.md)
     * [Route](api-reference/attribute/attr-routing.md)
+    * [Middleware](api-reference/attribute/attr-middleware.md)
     * [Parameter](api-reference/attribute/attr-parameters.md)
     * [Utility](api-reference/attribute/attr-utility.md)
 * Handlers
@@ -33,9 +30,9 @@
     * [ManagerBase](api-reference/manager/manager-base.md)
 * Models
     * [HttpModel](api-reference/model/http-model.md)
+    * [Custom Http Model](api-reference/model/custom-http-models.md)
     * [RequestModel](api-reference/model/request-model.md)
     * [ResponseModel](api-reference/model/response-model.md)
-    * [Custom Http Model](api-reference/model/custom-http-models.md)
 * Pools
     * [PooledObject](api-reference/pool/pooled-object.md)
 * Storage
@@ -51,9 +48,11 @@
 * NetCoreServer
     * Transport
         * Core
-            * [SessionTransport](api-reference/netcoreserver/Transport/Core/transport-session.md)
             * [ServerTransport](api-reference/netcoreserver/Transport/Core/transport-server.md)
+            * [SessionTransport](api-reference/netcoreserver/Transport/Core/transport-session.md)
             * [ClientTransport](api-reference/netcoreserver/Transport/Core/transport-client.md)
+            * [StreamSessionTransport](api-reference/netcoreserver/Transport/Core/transport-sessionstream.md)
+            * [StreamClientTransport](api-reference/netcoreserver/Transport/Core/transport-clientstream.md)
         * TCP
             * [TcpServer](api-reference/netcoreserver/Transport/Tcp/tcp-server.md)
             * [TcpSession](api-reference/netcoreserver/Transport/Tcp/tcp-session.md)
@@ -63,14 +62,14 @@
             * [SslSession](api-reference/netcoreserver/Transport/Ssl/ssl-session.md)
             * [SslClient](api-reference/netcoreserver/Transport/Ssl/ssl-client.md)
             * [SslContext](api-reference/netcoreserver/Transport/Ssl/ssl-context.md)
-        * UDP
+        <!-- * UDP
             * [UdpServer](api-reference/netcoreserver/Transport/Udp/udp-server.md)
             * [UdpSession](api-reference/netcoreserver/Transport/Udp/udp-session.md)
-            * [UdpClient](api-reference/netcoreserver/Transport/Udp/udp-client.md)
-        <!-- * UDS
+            * [UdpClient](api-reference/netcoreserver/Transport/Udp/udp-client.md) -->
+        * UDS
             * [UdsServer](api-reference/netcoreserver/Transport/Uds/uds-server.md)
             * [UdsSession](api-reference/netcoreserver/Transport/Uds/uds-session.md)
-            * [UdsClient](api-reference/netcoreserver/Transport/Uds/uds-client.md) -->
+            * [UdsClient](api-reference/netcoreserver/Transport/Uds/uds-client.md)
     * Servers
         * [HttpServer](api-reference/netcoreserver/Server/server-http.md)
         * [HttpsServer](api-reference/netcoreserver/Server/server-https.md)

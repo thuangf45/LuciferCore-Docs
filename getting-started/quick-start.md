@@ -1,12 +1,14 @@
 # Quick Start
 
-This page gets you from zero to a running WSS + HTTPS server in **6 steps** — no configuration files, no boilerplate, just attributes.
+Start a WSS + HTTPS server in **6 steps**.  
+No config files. No heavy setup. Just attributes.
 
 ---
 
-## Step 1 — Define Your Server
+## Step 1) Create a server
 
-Decorate your class with `[Server]` to register it as a high-performance server instance. Use `[Config]` to bind configurable values (paths, certificates, etc.) without hardcoding.
+Use `[Server]` to register your server.  
+Use `[Config]` for values like static folder and certificate path.
 
 ```csharp
 [Server("ChatServer", 8443)]
@@ -20,8 +22,8 @@ public class ChatServer : WssServer
 
         Mapping = new(true)
         {
-            { "/",          "/index.html"      },
-            { "/404",       "/404.html"        }
+            { "/", "/index.html" },
+            { "/404", "/404.html" }
         };
         Mapping.Freeze();
     }
@@ -48,19 +50,20 @@ public class ChatServer : WssServer
         return SslContext.CreateDevelopmentContext();
 #else
         var cert = X509CertificateLoader.LoadPkcs12FromFile(s_certPath, s_certPassword);
-        return new(SslProtocols.Tls12, cert);
+        return new(SslContext.SslProtocols.Tls12, cert);
 #endif
     }
 }
 ```
 
-> In `DEBUG` mode, `CreateSslContext()` automatically generates a development certificate — no setup needed.
+> In `DEBUG`, `CreateSslContext()` uses a development certificate automatically.
 
 ---
 
-## Step 2 — Configure Your Session
+## Step 2) Create a session
 
-Apply `[RateLimiter]` at the session level and forward incoming messages to `Lucifer.Route()`.
+Use `[RateLimiter]` to limit request rate per session.  
+Forward HTTP requests to the router with `Lucifer.Route(...)`.
 
 ```csharp
 [RateLimiter(10, 1)]
@@ -72,10 +75,9 @@ public partial class ChatSession : WssSession
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnWsReceived(byte[] buffer, long offset, long size)
     {
-
+        // Handle websocket message
     }
 
-    // Forward HTTP requests to the dispatcher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnReceivedRequest(RequestModel request)
         => Lucifer.Route(request, this);
@@ -84,58 +86,36 @@ public partial class ChatSession : WssSession
 
 ---
 
-## Step 3 — Implement Your Handlers
+## Step 3) Add route handlers
 
-### HTTP Handler
+Use `[Handler]` to define an API group.  
+Use HTTP attributes (`[HttpGet]`, `[HttpPost]`, etc.) for each endpoint.
 
 ```csharp
 [Handler("v1", "/api/user")]
 internal class HttpsHandler : RouteHandler
 {
     [Authorize(UserRole.Guest)]
-    [HttpHead("")]
-    protected void HeadHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
-
-    [Authorize(UserRole.Guest)]
     [HttpGet("")]
     protected void GetHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
+    {
+        // Handle GET /v1/api/user
+    }
 
     [Authorize(UserRole.Guest)]
     [HttpPost("")]
     protected void PostHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
-
-    [Authorize(UserRole.Guest)]
-    [HttpPut("")]
-    protected void PutHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
-
-    [Authorize(UserRole.Guest)]
-    [HttpDelete("")]
-    protected void DeleteHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
-
-    [Authorize(UserRole.Guest)]
-    [HttpOptions("")]
-    protected void OptionsHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
-
-    [Authorize(UserRole.Guest)]
-    [HttpTrace("")]
-    protected void TraceHandle([Data] RequestModel request, [Session] HttpsSession session)
-        => throw new NotImplementedException();
+    {
+        // Handle POST /v1/api/user
+    }
 }
 ```
 
 ---
 
-#### 4. Add Cross-Cutting Logic with MiddlewareHandler
+## Step 4) Add middleware (cross-cutting logic)
 
-`MiddlewareHandler` is a lighter sibling of `RouteHandler`: instead of multiple attribute-driven endpoints, it exposes a single `Handle` contract, making it ideal for cross-cutting concerns (auth checks, logging, request shaping) that run before a route's actual handler.
-
-Decorate your class with `[Middleware("name")]` and implement the single `Handle(IRoutable data, SessionTransport session)` method. Reference it from any handler method via `[UseMiddleware("name")]`.
+Use middleware for auth checks, logging, validation, etc.
 
 ```csharp
 [Middleware("AuthGuard")]
@@ -143,13 +123,13 @@ internal sealed class AuthGuardMiddleware : MiddlewareHandler
 {
     protected override bool Handle(IRoutable data, SessionTransport session)
     {
-        // Return false to block the pipeline, true to continue.
+        // false = stop pipeline, true = continue
         return session.IsAuthenticated;
     }
 }
 ```
 
-Attach it to a handler method:
+Attach middleware to a route:
 
 ```csharp
 [HttpGet("")]
@@ -157,19 +137,15 @@ Attach it to a handler method:
 [Authorize(UserRole.Guest)]
 public void SendChat([Session] ChatSession session, [Data] PacketModel data)
 {
-    
+    // Route logic
 }
 ```
 
-| | RouteHandler | MiddlewareHandler |
-|---|---|---|
-| Contract | Multiple attribute-routed methods (`[WsMessage]`, `[HttpGet]`, ...) | Single `Handle(IRoutable, SessionTransport)` override |
-| Attribute | `[Handler(version, route)]` | `[Middleware(name)]` |
-| Usage | Endpoint logic | Cross-cutting checks invoked via `[UseMiddleware(name)]` |
+---
 
-#### 5. Manage System Logic with Managers
+## Step 5) Add a manager (background logic)
 
-Extend `ManagerBase` for heavy, continuously running background tasks with adaptive scheduling.
+Use a manager for long-running system/background work.
 
 ```csharp
 [Manager("MasterManager")]
@@ -177,29 +153,28 @@ public class ManagerMaster : ManagerBase
 {
     protected override void Setup()
     {
-       // Setup
+        // Initial setup
     }
 
     protected override void Update()
     {
-        Lucifer.Log(this, "Master is running....");
-
-        // update workload
-        workload = 10; // remaining job
+        Lucifer.Log(this, "Master is running...");
+        workload = 10; // remaining jobs
     }
 }
 ```
 
 ---
 
-## Step 6 — Run
+## Step 6) Run the system
 
 ```csharp
 using LuciferCore.Main;
 
-Lucifer.CMD("/run"u8); // auto-discovers all [Server], [Handler], [Manager], [Service]
+Lucifer.CMD("/run"u8);
 ```
 
-That's it. LuciferCore auto-discovers every decorated class and starts the full ecosystem.
+LuciferCore auto-discovers classes with attributes like:
+`[Server]`, `[Handler]`, `[Manager]`, `[Middleware]`, `[Service]`.
 
----
+You are now running a full event-driven ecosystem.

@@ -1,63 +1,74 @@
 # Manager System
 
-A **Manager** is a background worker that runs on a continuous, workload-driven loop. Unlike fixed-interval tickers, a Manager sleeps when there's nothing to do and wakes up instantly when new work arrives — ideal for heartbeats, cleanup routines, state broadcasting, queue processing, and monitoring tasks.
+A **Manager** is a background worker.
+
+It runs in a workload-based loop:
+- sleeps when no work
+- wakes when new work arrives
+
+Use it for:
+- heartbeat tasks
+- cleanup jobs
+- queue processing
+- monitoring
+- state broadcast
 
 ---
 
-## The `[Manager]` Attribute
+## `[Manager]` attribute
 
 ```csharp
 [Manager("MasterManager")]
 public class ManagerMaster : ManagerBase { ... }
 ```
 
-| Parameter | Type | Description |
+| Parameter | Type | Meaning |
 |---|---|---|
-| `name` | `string` | A human-readable identifier for this manager |
+| `name` | `string` | Manager name |
 
-LuciferCore auto-discovers and starts all `[Manager]`-decorated classes when `Lucifer.Run()` is called.
-
----
-
-## How the Loop Works
-
-Each Manager spawns its worker thread exactly once (on first `Start()`) and keeps it alive for the lifetime of the application. The loop logic is workload-driven, not timer-driven:
-
-- If `workload <= 0`, the thread blocks on an internal wait handle until `NotifyWork()` is called.
-- If `workload > 0`, `Update()` is called immediately, then the thread does a short, non-blocking yield (`1ms`) before checking again.
-- `Stop()` pauses processing without killing the thread; `Start()` resumes it instantly — no respawn cost.
-
-This means there's no fixed polling interval to configure: the Manager reacts to actual workload instead of running on a blind timer.
+LuciferCore auto-discovers managers and starts them when the host runs.
 
 ---
 
-## Lifecycle Methods
+## How loop works
 
-Extend `ManagerBase` and override the methods relevant to your use case:
+Manager loop is **workload-driven** (not fixed timer).
+
+- If `workload <= 0`: manager waits (sleep state)
+- If `workload > 0`: manager runs `Update()`
+- `NotifyWork()` wakes manager immediately when new work comes
+
+`Stop()` pauses processing.  
+`Start()` resumes quickly (no heavy respawn flow).
+
+---
+
+## Main lifecycle methods
 
 ### `Setup()`
-Called once when the manager's thread starts, before the loop begins. Use it for one-time initialization.
+Runs once when manager thread starts.
 
 ```csharp
 protected override void Setup()
 {
-    // Initialize state, open connections, etc.
+    // one-time init
 }
 ```
 
 ### `Update()`
-The core loop method — called repeatedly whenever `workload > 0` (or once per wake if you don't track workload). This is where your recurring logic lives.
+Main processing method.
 
 ```csharp
 protected override void Update()
 {
-    Lucifer.Log(this, "Master is running....");
+    Lucifer.Log(this, "Manager is running...");
 }
 ```
 
 ### `workload`
+A protected `volatile int` value for pending work count.
 
-A protected `volatile int` field representing the current amount of pending work (e.g. queue size, active sessions). Update it inside `Update()` to reflect real load — the loop uses this value to decide whether to keep processing or go back to sleep.
+Example:
 
 ```csharp
 protected override void Update()
@@ -71,8 +82,7 @@ protected override void Update()
 ```
 
 ### `NotifyWork()`
-
-Call this whenever new work is enqueued, to wake the manager's thread immediately instead of waiting for its next poll.
+Call when new work is added.
 
 ```csharp
 public void Enqueue(Job job)
@@ -83,34 +93,35 @@ public void Enqueue(Job job)
 }
 ```
 
-### `Cleanup()` / `Reload()`
+### `Cleanup()` and `Reload()`
+Used in restart flow:
 
-Called during `Restart()`: `Cleanup()` runs first to release resources, then `Reload()` runs to reinitialize state, before the manager starts again.
+1. `Cleanup()` release old resources
+2. `Reload()` init again
 
 ```csharp
 protected override void Cleanup()
 {
-    // Release resources before restart
+    // release resources
 }
 
 protected override void Reload()
 {
-    // Reinitialize state after cleanup
+    // init again
 }
 ```
 
-### `OnStarted()` / `OnStopped()`
-
-Hooks called right after the manager starts or stops, useful for logging or notifying other systems.
+### `OnStarted()` and `OnStopped()`
+Hooks for logging/notifications.
 
 ```csharp
-protected override void OnStarted() => Lucifer.Log(this, "Master started");
-protected override void OnStopped() => Lucifer.Log(this, "Master stopped");
+protected override void OnStarted() => Lucifer.Log(this, "Manager started");
+protected override void OnStopped() => Lucifer.Log(this, "Manager stopped");
 ```
 
 ---
 
-## Full Example
+## Full example
 
 ```csharp
 [Manager("MasterManager")]
@@ -118,36 +129,32 @@ public class ManagerMaster : ManagerBase
 {
     protected override void Setup()
     {
-        Lucifer.Log(this, "Master setup complete");
+        Lucifer.Log(this, "Setup complete");
     }
 
     protected override void Update()
     {
-        Lucifer.Log(this, "Master is running....");
+        Lucifer.Log(this, "Manager is running...");
     }
 
     protected override void Cleanup()
     {
-        // Release resources
+        // release resources
     }
 
     protected override void Reload()
     {
-        // Reinitialize state
+        // reinitialize state
     }
 }
 ```
 
 ---
 
-## Managing from the Console
+## Console commands
 
-Once running, managers can be controlled via built-in console commands:
-
-```csharp
+```text
 /start managers
 /stop managers
 /restart managers
 ```
-
----

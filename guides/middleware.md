@@ -1,10 +1,24 @@
 # Middleware
 
-A **Middleware** is a reusable gatekeeper that runs *before* a route's handler method executes. It receives the same `IRoutable` payload and `SessionTransport` session as the handler, and returns `true`/`false` to allow or block the request. Use it for cross-cutting concerns like authentication, IP filtering, session validation, or custom rate limiting.
+A **Middleware** runs before a handler method.
+
+It gets:
+- `IRoutable data`
+- `SessionTransport session`
+
+It returns:
+- `true` → continue
+- `false` → stop request
+
+Use middleware for shared checks like:
+- authentication
+- IP filter
+- session validation
+- custom rate limit
 
 ---
 
-## The `[Middleware]` Attribute
+## `[Middleware]` attribute
 
 ```csharp
 [Middleware("RequireLogin")]
@@ -23,20 +37,27 @@ internal class RequireLoginMiddleware : MiddlewareHandler
 }
 ```
 
-| Parameter | Type     | Description                                              |
-|-----------|----------|------------------------------------------------------------|
-| `name`    | `string` | Unique identifier used to reference this middleware from `[UseMiddleware]` |
+| Parameter | Type | Meaning |
+|---|---|---|
+| `name` | `string` | Middleware name used by `[UseMiddleware("name")]` |
 
-LuciferCore auto-discovers and registers all `[Middleware]`-decorated classes at startup.
+LuciferCore auto-discovers all middleware classes at startup.
 
 ---
 
-## Implementing `Handle()`
+## Implement `Handle(...)`
 
-Override `Handle(IRoutable data, SessionTransport session)` and return:
+Override:
 
-- `true` — request is allowed to continue to the handler method
-- `false` — request is blocked; the handler method is never invoked
+```csharp
+protected override bool Handle(IRoutable data, SessionTransport session)
+```
+
+Return:
+- `true` to allow request
+- `false` to block request
+
+Example:
 
 ```csharp
 [Middleware("IpWhitelist")]
@@ -53,15 +74,15 @@ internal class IpWhitelistMiddleware : MiddlewareHandler
 
 ---
 
-## Applying Middleware to a Route
+## Use middleware on a route
 
-Attach middleware to a handler method with `[UseMiddleware("name")]`. Multiple middlewares can be stacked — they run in ascending `Order`.
+Use `[UseMiddleware("name")]` on handler methods.
 
 ```csharp
 [Handler("v1", "wss")]
 internal class ChatHandler : RouteHandler
 {
-    [WsMessage("ChatMessage")]
+    [Message("ChatMessage")]
     [UseMiddleware("RequireLogin", Order = 0)]
     [UseMiddleware("IpWhitelist", Order = 1)]
     public void SendChat([Session] ChatSession session, [Data] PacketModel data)
@@ -72,14 +93,17 @@ internal class ChatHandler : RouteHandler
 }
 ```
 
-If any middleware in the chain returns `false`, the chain stops immediately and the handler method is **not** executed.
+- You can add multiple middlewares.
+- They run by `Order` (small number runs first).
+- If one middleware returns `false`, handler method will not run.
 
 ---
 
-## Remarks
+## Notes
 
-- Middleware names referenced in `[UseMiddleware("name")]` must match a registered `[Middleware("name")]` class exactly, or the route will be blocked by default.
-- Middleware runs synchronously and should stay lightweight — avoid blocking I/O inside `Handle()`.
-- A handler method with no `[UseMiddleware]` attributes runs unguarded (allowed by default).
-
----
+- Middleware name in `[UseMiddleware("name")]` must match `[Middleware("name")]` exactly.
+- If middleware is missing, route is blocked by default.
+- Keep `Handle(...)` fast. Avoid blocking I/O.
+- If a method has no `[UseMiddleware]`, it runs without middleware checks.
+- You can create your own middleware types for custom logic.
+- See **API Reference** for built-in middleware and options.

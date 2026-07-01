@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Session`
 
-Secure HTTPS session. Extends `SslSession` — handles incremental HTTP request parsing, static content serving, and response sending over an encrypted connection.
+`HttpsSession` is the secure HTTP session class.  
+It extends `SslSession` and handles HTTP request parsing + response sending over TLS.
 
 ```csharp
 public class HttpsSession : SslSession
@@ -16,7 +17,8 @@ public class HttpsSession : SslSession
 public HttpsSession(HttpsServer server)
 ```
 
-Not instantiated directly — returned by `HttpsServer.CreateSession()`. Captures a reference to the server's `Cache` at construction time.
+Created by `HttpsServer.CreateSession()`.  
+It keeps a reference to the server `Cache`.
 
 ---
 
@@ -24,57 +26,48 @@ Not instantiated directly — returned by `HttpsServer.CreateSession()`. Capture
 
 | Property | Type | Description |
 |---|---|---|
-| `Cache` | `FileCache` | Reference to the server's static content cache (captured in constructor) |
-| `Mapping` | `Utf8Map<ByteString>` | Reads through to the parent `HttpsServer.Mapping` on each access |
+| `Cache` | `FileCache` | Static file cache from the parent server |
+| `Mapping` | `Utf8Map<ByteString>` | URL mapping from `HttpsServer.Mapping` |
 
 ---
 
-## Send Response API
+## Response API
 
 ```csharp
 long SendResponse(ResponseModel response)
 bool SendResponseAsync(ResponseModel response)
 ```
 
-Both delegate to the generic `Send<byte>`/`SendAsync<byte>` inherited from `SslSession`. Prefer `SendResponseAsync` on hot paths.
-
-> **Not verified in this file:** whether sends are rejected before the TLS handshake completes (`IsHandshaked`). That behavior would live in `SslSession`/`SslServer`, not here — check those sources before documenting it as a guarantee.
+- `SendResponse(...)`: sync send
+- `SendResponseAsync(...)`: async send (recommended for normal request flow)
 
 ---
 
-## Lifecycle Hooks
-
-Override these in your session subclass:
+## Main hooks to override
 
 | Method | When called |
 |---|---|
-| `OnReceivedRequestHeader(RequestModel)` | Request headers parsed — body may still be pending. Default implementation is empty |
-| `OnReceivedRequest(RequestModel)` | **Primary hook** — full request ready and not served from cache. Default implementation is empty; override this to handle the request |
-| `OnReceivedRequestError(RequestModel, string)` | Parse error — session is disconnected immediately after |
-| `OnReceivedCachedRequest(RequestModel, byte[])` | Static file cache hit — default implementation sends the cached bytes via `SendAsync`. Override to intercept |
+| `OnReceivedRequestHeader(RequestModel)` | Request header is parsed |
+| `OnReceivedRequest(RequestModel)` | Full request is ready (main handler) |
+| `OnReceivedRequestError(RequestModel, string)` | Request parse error |
+| `OnReceivedCachedRequest(RequestModel, byte[])` | Static cache hit |
 
-To customize **which** requests are treated as static/cacheable, override `GetStaticPath(RequestModel)` on your `HttpsServer` subclass, not on `HttpsSession`.
-
----
-
-## Request Dispatch Flow
-
-```csharp
-protected internal virtual void OnReceivedRequestInternal(RequestModel request)
-```
-
-Called once a full request is parsed. Behavior:
-
-1. If `Lucifer.Allow(this)` is `false` or `Lucifer.Overloaded` is `true`, the request is dropped (silently returns — the `Disconnect()` call is commented out in the current implementation).
-2. If the method is `GET` **and** the URL does not contain `/api` (case-insensitive), the session asks the parent `HttpsServer` for `GetStaticPath(request)` and checks `Cache` for that path.
-   - **Hit** → calls `OnReceivedCachedRequest(request, bytes)` and returns (cached response sent, `OnReceivedRequest` is *not* called).
-   - **Miss**, non-GET, or `/api` URL → falls through to `OnReceivedRequest(request)`.
-
-This method also runs from `OnDisconnected()` if a request's body was still pending when the client disconnected.
+`OnReceivedRequest(...)` is the main method to handle your API/business logic.
 
 ---
 
-## Usage
+## Request flow (simple)
+
+When a full request is ready:
+
+1. check overload/allow rules
+2. if `GET` and not `/api`, try static cache
+3. cache hit → call `OnReceivedCachedRequest(...)`
+4. otherwise → call `OnReceivedRequest(...)`
+
+---
+
+## Custom session example
 
 ```csharp
 public class ChatSession : HttpsSession
@@ -93,6 +86,10 @@ public class ChatSession : HttpsSession
 
 ## Inherited API
 
-All send, receive, disconnect, statistics, and base lifecycle hooks are inherited from `SslSession`.
+`HttpsSession` adds HTTPS request/response behavior.  
+Other APIs are inherited from `SslSession`, including:
 
----
+- send/receive base methods
+- disconnect/dispose
+- lifecycle hooks/events
+- metrics/options access

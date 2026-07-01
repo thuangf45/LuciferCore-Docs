@@ -1,10 +1,11 @@
 # Entry Point
 
-The entry point for any LuciferCore application is `Program.cs`. It is intentionally minimal — the framework handles all discovery and orchestration automatically.
+`Program.cs` is the entry point of a LuciferCore app.  
+It stays minimal because LuciferCore auto-discovers and wires everything for you.
 
 ---
 
-## Minimal Entry Point
+## Minimal `Program.cs`
 
 ```csharp
 using LuciferCore.Main;
@@ -12,37 +13,36 @@ using LuciferCore.Main;
 Lucifer.CMD("/run"u8);
 ```
 
-This single call:
-- Auto-discovers all classes decorated with `[Server]`, `[Handler]`, `[Middleware]`, `[Manager]` and `[Route]`
-- Wires up async dispatch pipelines
-- Starts all servers and managers
-- Launches the interactive console host
+This one line will:
 
----
+- Discover classes with `[Server]`, `[Handler]`, `[Middleware]`, `[Manager]`, `[Route]`
+- Build async dispatch pipelines
+- Start servers and managers
+- Start the interactive console host
 
 ---
 
 ## Built-in Console Commands
 
-Once `Lucifer.CMD("/run"u8)` is called, the console host is active with the following built-in commands:
+After `Lucifer.CMD("/run"u8)`, these commands are available:
 
 | Command | Description |
 |---|---|
-| `/start host` | Start the host system |
-| `/stop host` | Stop the host system |
-| `/restart host` | Restart the host system |
-| `/start servers` | Start all `[Server]`-decorated instances |
-| `/stop servers` | Stop all `[Server]`-decorated instances |
-| `/restart servers` | Restart all `[Server]`-decorated instances |
-| `/start managers` | Start all `[Manager]`-decorated instances |
-| `/stop managers` | Stop all `[Manager]`-decorated instances |
-| `/restart managers` | Restart all `[Manager]`-decorated instances |
+| `/start host` | Start host system |
+| `/stop host` | Stop host system |
+| `/restart host` | Restart host system |
+| `/start servers` | Start all servers marked with `[Server]` |
+| `/stop servers` | Stop all servers marked with `[Server]` |
+| `/restart servers` | Restart all servers marked with `[Server]` |
+| `/start managers` | Start all managers marked with `[Manager]` |
+| `/stop managers` | Stop all managers marked with `[Manager]` |
+| `/restart managers` | Restart all managers marked with `[Manager]` |
 
 ---
 
-## Defining Custom Console Commands
+## Add Custom Console Commands
 
-Extend the console host with your own commands using `[ConsoleCommand]`:
+Use `[ConsoleCommand]` to add your own commands:
 
 ```csharp
 [ConsoleCommand("/start proxy", "Start proxy")]
@@ -54,10 +54,9 @@ private static void CmdStartProxy() => Start();
 private static void CmdStopProxy() => Stop();
 ```
 
-The attribute takes two parameters:
-- **Command string** — the text the user types in the console (e.g. `/start proxy`)
-- **Description** — shown in the help listing
+`[ConsoleCommand]` has 2 parameters:
 
-Custom commands are auto-discovered alongside servers, handlers, middlewares managers and route at startup.
+- **Command string**: what the user types (example: `/start proxy`)
+- **Description**: shown in help output
 
----
+Custom commands are also auto-discovered at startup.

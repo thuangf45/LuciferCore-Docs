@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.TCP`
 
-Concrete TCP client. Extends `StreamClientTransport` — inherits double-buffered async send (main/flush buffer swap), `SocketAsyncEventArgs`-driven receive, and all `ClientTransport` connect/reconnect logic.
+`TcpClient` is the default TCP client class.  
+It extends `StreamClientTransport`.
 
 ```csharp
 public class TcpClient : StreamClientTransport
@@ -13,17 +14,19 @@ public class TcpClient : StreamClientTransport
 ## Constructors
 
 ```csharp
-public TcpClient(string host)                          // → DnsEndPoint(host, 80)
+public TcpClient(string host)                          // uses port 80
 public TcpClient(DnsEndPoint endpoint)
 public TcpClient(IPAddress address, int port)
 public TcpClient(string address, int port)
 public TcpClient(IPEndPoint endpoint)
-public TcpClient(EndPoint endpoint, string address, int port)  // main constructor
+public TcpClient(EndPoint endpoint, string address, int port)
 ```
+
+Choose the constructor that matches your input (host, IP, or endpoint).
 
 ---
 
-## Usage
+## Quick usage
 
 ```csharp
 var client = new TcpClient("127.0.0.1", 9000);
@@ -31,7 +34,9 @@ client.ConnectAsync();
 client.SendAsync("ping"u8);
 ```
 
-Extend to override lifecycle hooks:
+---
+
+## Custom client example
 
 ```csharp
 public class MyClient : TcpClient
@@ -50,6 +55,19 @@ public class MyClient : TcpClient
 
 ## Inherited API
 
-All connect/disconnect, send/receive, socket options, statistics, and lifecycle hook methods are inherited from `StreamClientTransport`, `ClientTransport`, and `SessionTransport`.
+`TcpClient` adds no new public connect/send/receive methods.
+
+Use inherited APIs from `StreamClientTransport` / `ClientTransport` / `SessionTransport`:
+
+- connect/reconnect/disconnect
+- `Send<T>(...)`, `SendAsync<T>(...)`
+- receive methods/hooks
+- lifecycle hooks/events
+- `Dispose()`
 
 ---
+
+## Notes
+
+- Use `TcpClient` as the default TCP client.
+- Put app/protocol logic in a derived client class.

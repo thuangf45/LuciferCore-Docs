@@ -2,7 +2,13 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.Core`
 
-Base session transport for handling client connections with async send/receive.
+`SessionTransport` is the base session class for client connection handling.
+
+It provides:
+- socket ownership
+- async send/receive flow
+- lifecycle hooks
+- session metrics/options access
 
 ```csharp
 public class SessionTransport : IDisposable
@@ -12,23 +18,25 @@ public class SessionTransport : IDisposable
 
 ## Properties
 
-| Property | Type | Description |
+| Property | Type | Meaning |
 |---|---|---|
-| `Server` | `ServerTransport` | Parent server instance |
-| `Socket` | `Socket` | Underlying network socket |
-| `Cache` | `Buffer` | Session cache buffer |
-| `SessionInfo` | `ref SessionInfo` | Session information struct reference (options, metrics, id, etc.) |
-| `IsConnected` | `bool` | True if session connected |
-| `IsDisposed` | `bool` | True if session disposed |
-| `IsSocketDisposed` | `bool` | True if socket disposed |
+| `Server` | `ServerTransport` | parent server |
+| `Socket` | `Socket` | underlying socket |
+| `Cache` | `Buffer` | session buffer cache |
+| `SessionInfo` | `ref SessionInfo` | session metadata/options/metrics |
+| `IsConnected` | `bool` | connected state |
+| `IsDisposed` | `bool` | session disposed state |
+| `IsSocketDisposed` | `bool` | socket disposed state |
 
-## Events
+---
+
+## Event
 
 ```csharp
 event Action<SocketError>? OnSocketError
 ```
 
-Socket error event handler.
+Raised on socket-level errors for this session.
 
 ---
 
@@ -39,43 +47,55 @@ long Send<T>(ReadOnlySpan<T> data) where T : unmanaged
 bool SendAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 ```
 
-Sends generic data synchronously/asynchronously. Supports `byte` and `char` spans directly; other unmanaged types are sent as their byte representation.
+- Sync and async send paths
+- Supports `byte` and `char` spans directly
+- Other unmanaged `T` are sent as raw byte representation
+
+---
 
 ## Receive API
 
 ```csharp
 long   Receive(byte[] buffer)
 long   Receive(byte[] buffer, long offset, long size)
-string Receive(long size)   // receives and decodes as UTF-8 text
+string Receive(long size)
 ```
 
-## Disconnect / Dispose
+- Byte receive overloads
+- UTF-8 decoded string receive overload
+
+---
+
+## Disconnect / dispose
 
 ```csharp
 bool Disconnect()
 void Dispose()
 ```
 
+- `Disconnect()` closes active connection
+- `Dispose()` releases session resources
+
 ---
 
-## Lifecycle Hooks
+## Lifecycle hooks (override points)
 
-Protected, overridable in a derived session class:
-
-| Method | When called |
+| Method | Called when |
 |---|---|
-| `OnConnecting()` | Before session connects |
-| `OnConnected()` | After session connected |
-| `OnHandshaking()` | During handshaking |
-| `OnHandshaked()` | After handshake completed |
-| `OnDisconnecting()` | Before session disconnects |
-| `OnDisconnected()` | After session disconnected |
-| `OnReceived(byte[] buffer, long offset, long size)` | When data received |
-| `OnSent(long sent, long pending)` | When data sent |
-| `OnEmpty()` | When send queue is empty |
-| `Dispose(bool disposingManagedResources)` | Dispose pattern implementation |
-| `ApplySocketOptions()` | Applies socket options from server configuration (keep-alive, no-delay) |
-| `TryReceive()` | Attempts async receive if not already receiving |
-| `TrySend()` | Attempts to send pending data |
+| `OnConnecting()` | before connect |
+| `OnConnected()` | after connect |
+| `OnHandshaking()` | during handshake |
+| `OnHandshaked()` | after handshake |
+| `OnDisconnecting()` | before disconnect |
+| `OnDisconnected()` | after disconnect |
+| `OnReceived(byte[] buffer, long offset, long size)` | data received |
+| `OnSent(long sent, long pending)` | data sent |
+| `OnEmpty()` | send queue becomes empty |
+| `Dispose(bool disposingManagedResources)` | dispose pipeline |
+| `ApplySocketOptions()` | apply session socket options |
+| `TryReceive()` | attempt async receive |
+| `TrySend()` | attempt sending pending data |
 
 ---
+
+Use derived session classes to implement protocol-specific behavior through these hooks.

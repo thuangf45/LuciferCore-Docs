@@ -2,128 +2,150 @@
 
 **Namespace:** `LuciferCore.Attributes`
 
-Routing attributes map handler methods to incoming messages or HTTP requests. They are evaluated at startup to build an immutable, lock-free dispatch table — no routing overhead occurs at runtime.
+Routing attributes map handler methods to incoming data.
 
-There are two categories:
+LuciferCore reads these attributes at startup and builds a fixed routing table.
 
-- **`[WsMessage]`** — maps a method to an incoming WebSocket message type.
-- **HTTP verb attributes** — map a method to an HTTP method and route path.
+Two main groups:
 
-All routing attributes inherit from `RouteAttribute`.
+- `[Message]` for message-style routes (for example WS/WSS/custom message protocols)
+- HTTP verb attributes (`[HttpGet]`, `[HttpPost]`, ...)
+
+All of them inherit from `RouteAttribute`.
 
 ---
 
-## `[WsMessage]`
+## `[Message]`
 
-Maps a handler method to an incoming WebSocket binary message by its type name.
+Maps a method to a message name.
 
 ### Declaration
 
 ```csharp
 [AttributeUsage(AttributeTargets.Method)]
-public class WsMessageAttribute : RouteAttribute
+public class MessageAttribute : RouteAttribute
 ```
+
+`[Message]` allows one route per method (`AllowMultiple = false`).
 
 ### Constructor
 
 ```csharp
-public WsMessageAttribute(string path)
+public MessageAttribute(string path)
 ```
 
-| Parameter | Type | Description |
+| Parameter | Type | Meaning |
 |---|---|---|
-| `path` | `string` | The message type name to match (e.g. `"ChatMessage"`, `"Default"`) |
+| `path` | `string` | Message name (example: `"ChatMessage"`, `"Default"`) |
 
-Internally, `[WsMessage]` uses the method key `"MSG"`. The full dispatch key becomes `/version/prefix/path`.
+Internal method key is `"MSG"`.
 
 ### Usage
 
 ```csharp
-[WsMessage("ChatMessage")]
-[Safe("")]
-[RateLimiter(20, 1)]
+[Message("ChatMessage")]
 [Authorize(UserRole.Guest)]
 public void SendChat([Session] ChatSession session, [Data] PacketModel data) { ... }
 ```
 
-### Default Handler
-
-Use `"Default"` to catch any message type that does not match a registered handler:
+### Default message route
 
 ```csharp
-[WsMessage("Default")]
-[Safe("")]
+[Message("Default")]
 public void Default([Session] ChatSession session, [Data] PacketModel data)
     => throw new NotImplementedException();
 ```
 
+Use `"Default"` as fallback when no message route matches.
+
 ---
 
-## HTTP Verb Attributes
+## HTTP verb attributes
 
-Each attribute maps a handler method to a specific HTTP method and an optional sub-route relative to the handler's `[Handler]` prefix.
+Map method to HTTP verb + sub-route.
 
-### Available Attributes
+### Available attributes
 
-| Attribute | HTTP Method | Declaration |
-|---|---|---|
-| `[HttpGet(path)]` | `GET` | `public class HttpGetAttribute : RouteAttribute` |
-| `[HttpPost(path)]` | `POST` | `public class HttpPostAttribute : RouteAttribute` |
-| `[HttpPut(path)]` | `PUT` | `public class HttpPutAttribute : RouteAttribute` |
-| `[HttpDelete(path)]` | `DELETE` | `public class HttpDeleteAttribute : RouteAttribute` |
-| `[HttpHead(path)]` | `HEAD` | `public class HttpHeadAttribute : RouteAttribute` |
-| `[HttpOptions(path)]` | `OPTIONS` | `public class HttpOptionsAttribute : RouteAttribute` |
-| `[HttpTrace(path)]` | `TRACE` | `public class HttpTraceAttribute : RouteAttribute` |
+| Attribute | HTTP Method |
+|---|---|
+| `[HttpGet(path)]` | GET |
+| `[HttpPost(path)]` | POST |
+| `[HttpPut(path)]` | PUT |
+| `[HttpDelete(path)]` | DELETE |
+| `[HttpHead(path)]` | HEAD |
+| `[HttpOptions(path)]` | OPTIONS |
+| `[HttpTrace(path)]` | TRACE |
 
-All constructors follow the same signature:
+These attributes inherit `AllowMultiple = true` from `RouteAttribute`, so you can stack them.
+
+Constructor form:
 
 ```csharp
 public Http*Attribute(string path)
 ```
 
-| Parameter | Type | Description |
+| Parameter | Type | Meaning |
 |---|---|---|
-| `path` | `string` | Sub-route appended to the handler's base prefix. Pass `""` to match the base route exactly |
+| `path` | `string` | Sub-route under handler prefix (`""` = exact base route) |
 
 ### Usage
 
 ```csharp
 [Handler("v1", "/api/user")]
-internal class HttpsHandler : HttpsHandlerBase
+internal class UserHandler : RouteHandler
 {
-    [HttpGet("")]           // matches GET  /v1/api/user
+    [HttpGet("")]
     protected void GetHandle([Data] RequestModel request, [Session] HttpsSession session) { ... }
 
-    [HttpPost("/login")]    // matches POST /v1/api/user/login
+    [HttpPost("login")]
     protected void LoginHandle([Data] RequestModel request, [Session] HttpsSession session) { ... }
 
-    [HttpDelete("")]        // matches DELETE /v1/api/user
+    [HttpDelete("")]
     protected void DeleteHandle([Data] RequestModel request, [Session] HttpsSession session) { ... }
 }
 ```
 
 ---
 
-## `RouteAttribute` (Base Class)
-
-All routing attributes inherit from `RouteAttribute`, which normalizes and encodes the method and path into `ByteString` at construction time.
+## `RouteAttribute` (base class)
 
 ```csharp
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public class RouteAttribute : Attribute
 ```
 
-| Property | Type | Description |
+| Property | Type | Meaning |
 |---|---|---|
-| `Method` | `ByteString` | The normalized HTTP or internal method key (e.g. `GET`, `POST`, `MSG`) |
-| `Path` | `ByteString` | The normalized route path, always starting with `/` or empty |
+| `Method` | `ByteString` | Method key (`GET`, `POST`, `MSG`, ...) |
+| `Path` | `ByteString` | Normalized path |
 
-`AllowMultiple = true` — a single method can be mapped to multiple routes by stacking routing attributes.
+### Normalization rules
+
+- If method is empty, method becomes `"ANY"`.
+- If path is empty, path is empty.
+- If path does not start with `/`, `/` is added automatically.
 
 ---
 
-## Remarks
+## Route key format
 
-- The full dispatch key for any method is assembled as `/{version}/{prefix}/{path}`, normalized at startup.
-- Routing tables are built into a lock-free structure once at startup. There is no per-request route matching overhead.
-- If no handler matches an incoming message or request, the `"Default"` handler (if registered) is invoked. If no `"Default"` is registered, the message is dropped.
+Final route key is built from:
+
+`/{version}/{prefix}/{path}`
+
+Example:
+
+```text
+/v1/api/user + [HttpGet("")]       -> GET /v1/api/user
+/v1/api/user + [HttpPost("login")] -> POST /v1/api/user/login
+/v1/wss      + [Message("Chat")]   -> MSG /v1/wss/Chat
+```
+
+---
+
+## Notes
+
+- Routing is prepared once at startup.
+- Runtime dispatch uses the prebuilt table.
+- If no route matches, `"Default"` route is used (if defined).
+- Routing is extensible: you can create custom route labels/attributes for custom protocols.

@@ -1,12 +1,43 @@
 # Configuring a Session
 
-A **Session** represents a single connected client. It is the bridge between the raw socket layer and LuciferCore's dispatch pipeline. Every incoming message — whether WebSocket binary or HTTP request — passes through the session.
+A **Session** represents one connected client for a specific server stack.
+
+It bridges:
+- low-level transport events (TCP/SSL/HTTP/WS)
+- LuciferCore routing and dispatch
+
+All inbound data goes through the session first.
 
 ---
 
-## The `[RateLimiter]` Attribute
+## Sessions are protocol-stack dependent
 
-Apply `[RateLimiter]` at the session class level to enforce a connection-wide rate limit before any handler is invoked.
+LuciferCore supports multiple session types, not only `WssSession`.
+
+Depending on your selected server base, session can be based on:
+- TCP
+- SSL
+- HTTP / HTTPS
+- WS / WSS
+- and future protocol sessions added later
+
+> Choose session base type from API Reference (NetCoreServer hierarchy + LuciferCore extensions).
+
+---
+
+## Layer behavior and protocol transition
+
+With higher-layer sessions (for example WS/WSS):
+- Before WebSocket handshake, traffic is still HTTP/HTTPS.
+- After handshake, traffic becomes WebSocket frames.
+
+You can also hook and inspect data at different layers (transport/TCP/SSL/HTTP/WS), based on where your logic belongs.
+
+---
+
+## `[RateLimiter]` attribute
+
+Use `[RateLimiter]` on session class to apply per-connection limits before handler execution.
 
 ```csharp
 [RateLimiter(10, 1)]
@@ -15,33 +46,35 @@ public partial class ChatSession : WssSession { ... }
 
 | Parameter | Type | Description |
 |---|---|---|
-| `limit` | `int` | Maximum number of messages allowed |
+| `limit` | `int` | Max allowed messages/events |
 | `window` | `int` | Time window in seconds |
 
-The example above allows a maximum of **10 messages per second** per connection.
+Example: `[RateLimiter(10, 1)]` = up to **10 messages per second** per connection.
 
 ---
 
-## Forwarding to the Dispatcher
+## Forward data to router
 
-Override the appropriate `On*` methods and forward directly to `Lucifer.Route()`. Do not add logic here — keep the session layer thin.
+Override receive methods for your session type and forward routable requests to `Lucifer.Route(...)`.
+
+Keep session code thin.  
+Business logic should stay in handlers/middlewares/managers.
 
 ```csharp
 protected override void OnWsReceived(byte[] buffer, long offset, long size)
 {
-
+    // Optional: protocol-level handling
 }
 
-// Forward incoming HTTP requests
 protected override void OnReceivedRequest(RequestModel request)
     => Lucifer.Route(request, this);
 ```
 
-`Lucifer.Route()` routes each message through the zero-allocation pipeline to the correct handler method based on the message type or HTTP route.
+`Lucifer.Route(...)` dispatches to the correct endpoint/handler.
 
 ---
 
-## Full Example
+## Example (WSS session)
 
 ```csharp
 [RateLimiter(10, 1)]
@@ -53,7 +86,7 @@ public partial class ChatSession : WssSession
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnWsReceived(byte[] buffer, long offset, long size)
     {
-
+        // Optional: process websocket message
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,6 +95,11 @@ public partial class ChatSession : WssSession
 }
 ```
 
-> The `partial` modifier is required — LuciferCore's source generator may extend your session class at compile time.
+> `partial` is required because LuciferCore source generators may extend your session class.
 
 ---
+
+## Keep an eye on new protocol docs
+
+LuciferCore can expand with more server/session types over time.  
+Follow the docs and API Reference for newly supported protocol stacks.

@@ -3,23 +3,23 @@
 ## Requirements
 
 - .NET 9.0 or later
-- A valid SSL certificate (for production WSS/HTTPS servers)
+- SSL certificate (required only for production WSS/HTTPS)
 
 ---
 
-## Install via NuGet CLI
+## 1) Install with .NET CLI
 
 ```bash
 dotnet add package LuciferCore
 ```
 
-## Install via Package Manager Console
+## 2) Install with Package Manager Console
 
 ```powershell
 Install-Package LuciferCore
 ```
 
-## Install via .csproj
+## 3) Install in `.csproj`
 
 ```xml
 <PackageReference Include="LuciferCore" Version="*" />
@@ -27,13 +27,13 @@ Install-Package LuciferCore
 
 ---
 
-## Verify Installation
+## Verify
 
-After installing, confirm the package is referenced correctly:
+Run:
 
 ```bash
 dotnet restore
 dotnet build
 ```
 
----
+If build succeeds, LuciferCore is installed correctly.

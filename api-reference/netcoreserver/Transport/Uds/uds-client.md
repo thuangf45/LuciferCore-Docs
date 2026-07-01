@@ -2,32 +2,41 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.UDS`
 
-Unix Domain Socket (UDS) client. Extends `StreamClientTransport` using a filesystem socket path instead of IP:port. TCP socket options and keep-alive are not applied.
+`UdsClient` is the Unix Domain Socket client class.  
+It extends `StreamClientTransport`.
 
 ```csharp
 public class UdsClient : StreamClientTransport
 ```
 
-> UDS is only available on Linux and macOS. On Windows, UDS support requires Windows 10 build 17063 or later.
+> UDS is supported on Linux and macOS.  
+> On Windows, it requires Windows 10 build 17063 or later.
 
 ---
 
 ## Constructors
 
 ```csharp
-public UdsClient(string path)                        // e.g. "/tmp/myapp.sock"
+public UdsClient(string path)                        // example: "/tmp/myapp.sock"
 public UdsClient(UnixDomainSocketEndPoint endpoint)
 ```
 
----
-
-## Socket
-
-Uses `SocketType.Stream` with `ProtocolType.Unspecified` and `AddressFamily.Unix`. `ClientSetUp()` and `ApplySocketOptions()` are both no-ops — no TCP-specific configuration is applied.
+Use a filesystem socket path instead of IP/port.
 
 ---
 
-## Usage
+## Socket behavior
+
+`UdsClient` uses Unix stream sockets (`AddressFamily.Unix`).
+
+- `ClientSetUp()` is empty
+- `ApplySocketOptions()` is empty
+
+TCP-specific options are not used for UDS.
+
+---
+
+## Quick usage
 
 ```csharp
 var client = new UdsClient("/tmp/myapp.sock");
@@ -35,7 +44,9 @@ client.ConnectAsync();
 client.SendAsync("ping"u8);
 ```
 
-Extend to override lifecycle hooks:
+---
+
+## Custom client example
 
 ```csharp
 public class MyClient : UdsClient
@@ -54,6 +65,19 @@ public class MyClient : UdsClient
 
 ## Inherited API
 
-All connect/disconnect, send/receive, statistics, and lifecycle hook methods are inherited from `StreamClientTransport` and `ClientTransport`.
+`UdsClient` adds no new public connect/send/receive methods.
+
+Use inherited APIs from `StreamClientTransport` / `ClientTransport` / `SessionTransport`:
+
+- connect/reconnect/disconnect
+- `Send<T>(...)`, `SendAsync<T>(...)`
+- receive methods/hooks
+- lifecycle hooks/events
+- `Dispose()`
 
 ---
+
+## Notes
+
+- Use `UdsClient` for local IPC over Unix domain sockets.
+- Put app/protocol logic in a derived client class.

@@ -1,87 +1,126 @@
-# Utility Attributes
+# Core Attributes
 
 **Namespace:** `LuciferCore.Attributes`
 
-Utility attributes handle cross-cutting concerns that are not part of the core request/response pipeline: interactive console commands and structured log tagging.
+Core attributes are optional helpers.
+
+They help with:
+- plugin discovery
+- console commands
+- config binding
+- log naming
+- layout field order
+
+The system can run without them.
+
+---
+
+## `[Plugin]`
+
+Marks a class as a plugin with metadata.
+
+### Declaration
+
+```csharp
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+public class PluginAttribute : Attribute { }
+```
+
+### Usage
+
+```csharp
+[Plugin("Renderer", "MyCustomRenderer")]
+public class MyCustomRenderer : IRenderer
+{
+    // ...
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `pluginType` | Plugin group (example: `"Renderer"`, `"AI"`, `"Audio"`) |
+| `name` | Plugin display name |
 
 ---
 
 ## `[ConsoleCommand]`
 
-Registers a static method as an interactive console command. LuciferCore auto-discovers all `[ConsoleCommand]`-decorated methods at startup and makes them available in the console host launched by `Lucifer.Run()`.
+Registers a method as a console command.
 
 ### Declaration
 
 ```csharp
-[AttributeUsage(AttributeTargets.Method)]
-public class ConsoleCommandAttribute : Attribute
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+public class ConsoleCommandAttribute : Attribute { }
 ```
-
-### Constructor
-
-```csharp
-public ConsoleCommandAttribute(string name, string description = "")
-```
-
-| Parameter | Type | Default | Description |
-|---|---|---|---|
-| `name` | `string` | — | The exact command string the user types in the console (e.g. `"/start proxy"`) |
-| `description` | `string` | `""` | Short description shown in the help listing |
-
-### Properties
-
-| Property | Type | Description |
-|---|---|---|
-| `Name` | `ByteString` | UTF-8 encoded command string |
-| `Description` | `ByteString` | UTF-8 encoded description |
 
 ### Usage
 
 ```csharp
 [ConsoleCommand("/start proxy", "Start proxy")]
-[MethodImpl(MethodImplOptions.AggressiveInlining)]
 private static void CmdStartProxy() => Start();
 
 [ConsoleCommand("/stop proxy", "Stop proxy")]
-[MethodImpl(MethodImplOptions.AggressiveInlining)]
 private static void CmdStopProxy() => Stop();
+
+// same method, multiple aliases
+[ConsoleCommand("/stop")]
+[ConsoleCommand("/shutdown", "Shut down the server")]
+private static void CmdStop() => Stop();
 ```
 
-### Remarks
+| Field | Meaning |
+|---|---|
+| `name` | Command text user types |
+| `description` | Help text (optional) |
 
-- The decorated method must be `static` and take no parameters.
-- Command names are case-sensitive. Use a consistent convention such as `/verb noun`.
-- Custom commands are discovered from any class in your assembly — no manual registration needed.
-- LuciferCore also ships with built-in commands for host, servers, and managers. See [Entry Point](../getting-started/entry-point.md) for the full built-in command reference.
+Notes:
+- Method should be `static` with no parameters.
+- `AllowMultiple = true` means one method can have many aliases.
+
+---
+
+## `[Config]`
+
+Binds a static property to a config key.
+
+### Declaration
+
+```csharp
+[AttributeUsage(AttributeTargets.Property)]
+public class ConfigAttribute : Attribute { }
+```
+
+### Usage
+
+```csharp
+[Config("WWW", "assets/client/dev")]
+private static string s_staticContentPath { get; set; } = string.Empty;
+
+[Config("CERTIFICATE", "assets/tools/certificates/server.pfx")]
+private static string s_certPath { get; set; } = string.Empty;
+
+[Config("CERT_PASSWORD", "RootCA!SecureKey@Example2025Strong")]
+private static string s_certPassword { get; set; } = string.Empty;
+```
+
+| Field | Meaning |
+|---|---|
+| `key` | Config key |
+| `defaultValue` | Fallback value when key is missing |
 
 ---
 
 ## `[LogTag]`
 
-Assigns a custom log tag identifier to a class. When `Lucifer.Log()` is called with an instance of the decorated class, the tag is used as the log prefix instead of the default class name.
+Sets a custom log tag for a class.
 
 ### Declaration
 
 ```csharp
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public class LogTagAttribute : Attribute
+public class LogTagAttribute : Attribute { }
 ```
-
-### Constructor
-
-```csharp
-public LogTagAttribute(string tag)
-```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `tag` | `string` | The log tag string used as a prefix in log output |
-
-### Properties
-
-| Property | Type | Description |
-|---|---|---|
-| `Tag` | `ByteString` | UTF-8 encoded log tag |
 
 ### Usage
 
@@ -92,14 +131,49 @@ public class ManagerMaster : ManagerBase
 {
     protected override void Update()
     {
-        Lucifer.Log(this, "Tick"); // output: [MASTER] Tick
+        Lucifer.Log(this, "Tick"); // [MASTER] Tick
     }
 }
 ```
 
-### Remarks
+If not set, log uses default class-based name.
 
-- `[LogTag]` only applies to classes (`AttributeTargets.Class`).
-- The attribute is not inherited (`Inherited = false`) — each class must declare its own tag if needed.
-- The tag is encoded as a `ByteString` once at startup and reused on every log call without allocation.
-- If `[LogTag]` is not present, `Lucifer.Log()` uses a default identifier derived from the class.
+---
+
+## `[LayoutIndex]`
+
+Sets property order in fixed layout models (for serialization/deserialization).
+
+### Declaration
+
+```csharp
+[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+public class LayoutIndexAttribute : Attribute { }
+```
+
+### Usage
+
+```csharp
+public class PlayerLayout
+{
+    [LayoutIndex(0)]
+    public int Id { get; set; }
+
+    [LayoutIndex(1)]
+    public float PosX { get; set; }
+
+    [LayoutIndex(2)]
+    public float PosY { get; set; }
+}
+```
+
+`index` is the field order.
+
+---
+
+## Notes
+
+- All attributes in this page are optional helpers.
+- `[ConsoleCommand]` is the only one here that supports multiple attributes on one target.
+- `[LogTag]` is not inherited by child classes.
+- Some text fields are stored internally as `ByteString` for efficient reuse.

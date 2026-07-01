@@ -2,9 +2,12 @@
 
 **Namespace:** `LuciferCore.Attributes`
 
-Registers a class as a message or request handler. LuciferCore auto-discovers all `[Handler]`-decorated classes and wires them into the dispatch pipeline at startup.
+Marks a class as a route handler.
 
-The decorated class must extend `WssHandlerBase` (for WebSocket) or `HttpsHandlerBase` (for HTTP).
+LuciferCore auto-discovers all `[Handler]` classes at startup and registers their routes.
+
+> Handler class should inherit `RouteHandler` (single handler base).  
+> Older protocol-specific handler base classes are no longer required.
 
 ---
 
@@ -23,44 +26,40 @@ public sealed class HandlerAttribute : Attribute
 public HandlerAttribute(string version = "v1", string prefix = "")
 ```
 
-| Parameter | Type | Description |
+| Parameter | Type | Meaning |
 |---|---|---|
-| `version` | `string` | API version segment. Automatically prepended with `/` if missing. Defaults to `"v1"` |
-| `prefix` | `string` | Route prefix for all methods in this handler. Automatically prepended with `/` if missing |
+| `version` | `string` | API version (default: `"v1"`) |
+| `prefix` | `string` | Base route/scope for this handler |
 
 ---
 
 ## Properties
 
-| Property | Type | Description |
+| Property | Type | Meaning |
 |---|---|---|
-| `Version` | `ByteString` | UTF-8 encoded version segment (e.g. `/v1`) |
-| `Prefix` | `ByteString` | UTF-8 encoded route prefix (e.g. `/api/user`) |
+| `Version` | `ByteString` | UTF-8 version (example: `/v1`) |
+| `Prefix` | `ByteString` | UTF-8 prefix (example: `/api/user`, `/wss`) |
 
 ---
 
 ## Usage
 
-### WebSocket Handler
-
-For WebSocket handlers, `prefix` is the protocol scope identifier (conventionally `"wss"`):
+### WebSocket-style scope
 
 ```csharp
 [Handler("v1", "wss")]
-internal class WssHandler : WssHandlerBase
+internal class ChatHandler : RouteHandler
 {
-    [WsMessage("ChatMessage")]
+    [Message("ChatMessage")]
     public void SendChat([Session] ChatSession session, [Data] PacketModel data) { ... }
 }
 ```
 
-### HTTP Handler
-
-For HTTP handlers, `prefix` is the base route path:
+### HTTP-style scope
 
 ```csharp
 [Handler("v1", "/api/user")]
-internal class HttpsHandler : HttpsHandlerBase
+internal class UserHandler : RouteHandler
 {
     [HttpGet("")]
     protected void GetHandle([Data] RequestModel request, [Session] HttpsSession session) { ... }
@@ -69,20 +68,26 @@ internal class HttpsHandler : HttpsHandlerBase
 
 ---
 
-## Routing Resolution
+## Route resolution
 
-The full dispatch key is assembled from `version` + `prefix` + the method-level route:
+Final route key is built from:
 
-```
-/v1/api/user  +  [HttpGet("")]        →  GET  /v1/api/user
-/v1/api/user  +  [HttpPost("/login")] →  POST /v1/api/user/login
-/v1/wss       +  [WsMessage("Chat")]  →  MSG  /v1/wss/Chat
+`version + prefix + method-level route`
+
+Examples:
+
+```text
+/v1/api/user + [HttpGet("")]         -> GET /v1/api/user
+/v1/api/user + [HttpPost("login")]   -> POST /v1/api/user/login
+/v1/wss      + [Message("Chat")]     -> MSG /v1/wss/Chat
 ```
 
 ---
 
-## Remarks
+## Notes
 
-- Only one `[Handler]` attribute is allowed per class (`AllowMultiple = false`).
-- The routing table is built once at startup into a lock-free structure — there is no per-request reflection.
-- Handler classes are internal to the dispatch system and should not be instantiated manually.
+- One `[Handler]` per class (`AllowMultiple = false`).
+- Routing table is built at startup (no per-request reflection).
+- Do not instantiate handlers manually.
+- Protocol behavior comes from method attributes (`[Message]`, `[HttpGet]`, ...) and `[Data]` type, not from different handler base classes.
+- You can extend routing with custom route labels/attributes for custom protocols.

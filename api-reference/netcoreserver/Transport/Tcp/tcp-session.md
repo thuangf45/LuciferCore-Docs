@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.TCP`
 
-Concrete TCP server-side session. Extends `StreamSessionTransport` — inherits double-buffered async send (main/flush buffer swap), `SocketAsyncEventArgs`-driven receive, and all `SessionTransport` lifecycle hooks.
+`TcpSession` is the default TCP server session class.  
+It extends `StreamSessionTransport`.
 
 ```csharp
 public class TcpSession : StreamSessionTransport
@@ -16,12 +17,27 @@ public class TcpSession : StreamSessionTransport
 public TcpSession(TcpServer server)
 ```
 
-Not instantiated directly — returned by `TcpServer.CreateSession()`.
+Created by `TcpServer.CreateSession()`.  
+You usually do not create it manually.
 
 ---
 
 ## Inherited API
 
-All send, receive, disconnect, statistics, and lifecycle hook methods are inherited from `StreamSessionTransport` and `SessionTransport`.
+`TcpSession` adds no new public methods.
+
+Use inherited APIs from `StreamSessionTransport` / `SessionTransport`, such as:
+
+- `Send<T>(...)`
+- `SendAsync<T>(...)`
+- `Receive(...)`
+- `Disconnect()`
+- `Dispose()`
+- lifecycle hooks/events
 
 ---
+
+## Notes
+
+- Use `TcpSession` for normal TCP server connections.
+- For custom protocol logic, derive your own session class and override base hooks.
