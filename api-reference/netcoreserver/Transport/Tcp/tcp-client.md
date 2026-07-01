@@ -2,7 +2,7 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.TCP`
 
-Concrete TCP client. Extends `StreamClientTransport` — inherits batched async send, `SocketAsyncEventArgs`-driven receive, and all `ClientTransport` connect/reconnect logic.
+Concrete TCP client. Extends `StreamClientTransport` — inherits double-buffered async send (main/flush buffer swap), `SocketAsyncEventArgs`-driven receive, and all `ClientTransport` connect/reconnect logic.
 
 ```csharp
 public class TcpClient : StreamClientTransport
@@ -13,10 +13,12 @@ public class TcpClient : StreamClientTransport
 ## Constructors
 
 ```csharp
+public TcpClient(string host)                          // → DnsEndPoint(host, 80)
+public TcpClient(DnsEndPoint endpoint)
 public TcpClient(IPAddress address, int port)
 public TcpClient(string address, int port)
 public TcpClient(IPEndPoint endpoint)
-public TcpClient(DnsEndPoint endpoint)
+public TcpClient(EndPoint endpoint, string address, int port)  // main constructor
 ```
 
 ---
@@ -48,4 +50,6 @@ public class MyClient : TcpClient
 
 ## Inherited API
 
-All connect/disconnect, send/receive, socket options, statistics, and lifecycle hook methods are inherited from `StreamClientTransport`, `ClientTransport`, and `SessionTransport`. See [StreamClientTransport](transport-stream-client.md) and [ClientTransport](transport-client.md).
+All connect/disconnect, send/receive, socket options, statistics, and lifecycle hook methods are inherited from `StreamClientTransport`, `ClientTransport`, and `SessionTransport`.
+
+---

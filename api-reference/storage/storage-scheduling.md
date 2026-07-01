@@ -177,3 +177,5 @@ while (!queue.IsEmpty && queue.Peek()._tick <= currentTick)
 
 - `Event` and `HeapQueue<T>` are **general-purpose scheduling primitives** — they are not tied to any specific server or session lifecycle. Use them wherever tick-based or time-ordered execution is needed within a Manager's `Update()` loop or a background service.
 - `EventPool<T>` is `internal` and not directly accessible from application code. Use `Recycle()` / `EventPool<T>.Stack.TryPop()` through the `Event<T>` API as shown above.
+
+---

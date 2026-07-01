@@ -10,6 +10,7 @@
 * [Defining a Server](guides/defining-a-server.md)
 * [Configuring a Session](guides/configuring-a-session.md)
 * [Defining a Handler](guides/handler.md)
+* [Defining a Middleware](guides/middleware.md)
 * [Manager System](guides/manager-system.md)
 * [Console Commands](guides/console-commands.md)
 
@@ -21,46 +22,55 @@
     * [Config](api-reference/attribute/attr-config.md)
     * [RateLimiter](api-reference/attribute/attr-ratelimiter.md)
     * [Authorize](api-reference/attribute/attr-authorize.md)
-    * [Safe](api-reference/attribute/attr-safe.md)
     * [Route](api-reference/attribute/attr-routing.md)
     * [Parameter](api-reference/attribute/attr-parameters.md)
     * [Utility](api-reference/attribute/attr-utility.md)
 * Handlers
     * [RouteHandler](api-reference/handler/route-handler.md)
+* Middlewares
+    * [MiddlewareHandler](api-reference/middleware/middleware-handler.md)
 * Managers
     * [ManagerBase](api-reference/manager/manager-base.md)
-    * [ManagerGuide](api-reference/manager/manager-guide.md)7
 * Models
     * [HttpModel](api-reference/model/http-model.md)
     * [RequestModel](api-reference/model/request-model.md)
     * [ResponseModel](api-reference/model/response-model.md)
     * [Custom Http Model](api-reference/model/custom-http-models.md)
-
+* Pools
+    * [PooledObject](api-reference/pool/pooled-object.md)
+* Storage
+    * [Buffer](api-reference/storage/storage-buffer.md)
+    * [FileCache](api-reference/storage/storage-filecache.md)
+    * [HeapQueue & Event](api-reference/storage/storage-scheduling.md)
+* UTF-8
+    * [ByteString & Comparer](api-reference/utf8/utf8-bytestring.md)
+    * [Utf8Builder](api-reference/utf8/utf8-builder.md)
+    * [UTF-8 Collections](api-reference/utf8/utf8-collections.md)
+* Views
+    * [Socket Info](api-reference/view/socket-info.md)
 * NetCoreServer
     * Transport
         * Core
             * [SessionTransport](api-reference/netcoreserver/Transport/Core/transport-session.md)
             * [ServerTransport](api-reference/netcoreserver/Transport/Core/transport-server.md)
             * [ClientTransport](api-reference/netcoreserver/Transport/Core/transport-client.md)
-            * [StreamSessionTransport](api-reference/netcoreserver/Transport/Core/transport-stream-session.md)
-            * [StreamClientTransport](api-reference/netcoreserver/Transport/Core/transport-stream-client.md)
         * TCP
             * [TcpServer](api-reference/netcoreserver/Transport/Tcp/tcp-server.md)
             * [TcpSession](api-reference/netcoreserver/Transport/Tcp/tcp-session.md)
             * [TcpClient](api-reference/netcoreserver/Transport/Tcp/tcp-client.md)
         * SSL
-            * [SslContext](api-reference/netcoreserver/Transport/Ssl/ssl-context.md)
             * [SslServer](api-reference/netcoreserver/Transport/Ssl/ssl-server.md)
             * [SslSession](api-reference/netcoreserver/Transport/Ssl/ssl-session.md)
             * [SslClient](api-reference/netcoreserver/Transport/Ssl/ssl-client.md)
+            * [SslContext](api-reference/netcoreserver/Transport/Ssl/ssl-context.md)
         * UDP
             * [UdpServer](api-reference/netcoreserver/Transport/Udp/udp-server.md)
             * [UdpSession](api-reference/netcoreserver/Transport/Udp/udp-session.md)
             * [UdpClient](api-reference/netcoreserver/Transport/Udp/udp-client.md)
-        * UDS
+        <!-- * UDS
             * [UdsServer](api-reference/netcoreserver/Transport/Uds/uds-server.md)
             * [UdsSession](api-reference/netcoreserver/Transport/Uds/uds-session.md)
-            * [UdsClient](api-reference/netcoreserver/Transport/Uds/uds-client.md)
+            * [UdsClient](api-reference/netcoreserver/Transport/Uds/uds-client.md) -->
     * Servers
         * [HttpServer](api-reference/netcoreserver/Server/server-http.md)
         * [HttpsServer](api-reference/netcoreserver/Server/server-https.md)
@@ -76,15 +86,3 @@
         * [HttpsClient](api-reference/netcoreserver/Client/client-https.md)
         * [WsClient](api-reference/netcoreserver/Client/client-ws.md)
         * [WssClient](api-reference/netcoreserver/Client/client-wss.md)
-
-* Pools
-    * [PooledObject](api-reference/pool/pooled-object.md)
-* Storage
-    * [Buffer](api-reference/storage/storage-buffer.md)
-    * [FileCache](api-reference/storage/storage-filecache.md)
-    * [StorageData](api-reference/storage/storage-storagedata.md)
-    * [HeapQueue & Event](api-reference/storage/storage-scheduling.md)
-* UTF-8 Utility
-    * [ByteString & Comparer](api-reference/utf8/utf8-bytestring.md)
-    * [Utf8Builder](api-reference/utf8/utf8-builder.md)
-    * [UTF-8 Collections](api-reference/utf8/utf8-collections.md)

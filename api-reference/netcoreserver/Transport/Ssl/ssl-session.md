@@ -2,7 +2,7 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.SSL`
 
-Server-side TLS/SSL session. Wraps the raw socket in an `SslStream` and performs the server-side TLS handshake asynchronously before enabling send/receive. All data is transparently encrypted through the `SslStream`.
+Server-side TLS/SSL session. Wraps the raw socket in an `SslStream` and performs the server-side TLS handshake asynchronously before enabling send/receive. All data is transparently encrypted/decrypted through the `SslStream`.
 
 ```csharp
 public class SslSession : SessionTransport
@@ -24,59 +24,69 @@ Not instantiated directly — returned by `SslServer.CreateSession()`.
 
 | Property | Type | Description |
 |---|---|---|
-| `IsHandshaking` | `bool` | `true` while the TLS handshake is in progress |
-| `IsHandshaked` | `bool` | `true` after the TLS handshake completes successfully |
+| `IsHandshaked` | `bool` (get only) | `true` after the TLS handshake completes successfully. `false` initially and after disconnect. |
 
-Send and receive operations are silently rejected (`return 0` / `return false`) until `IsHandshaked` is `true`.
+> There is no public `IsHandshaking` property on this class. Handshake-in-progress state is not publicly exposed by `SslSession` itself.
+
+Send and receive operations are silently rejected until `IsHandshaked` is `true`:
+
+```csharp
+public override bool SendAsync<T>(ReadOnlySpan<T> buffer)
+{
+    if (!IsHandshaked) return false;
+    return base.SendAsync(buffer);
+}
+
+public override long Send<T>(ReadOnlySpan<T> buffer)
+{
+    if (!IsHandshaked) return 0;
+    return base.Send(buffer);
+}
+
+public override long Receive(byte[] buffer, long offset, long size)
+{
+    if (!IsHandshaked) return 0;
+    return base.Receive(buffer, offset, size);
+}
+```
 
 ---
 
 ## Handshake Flow
 
-```
+```csharp
 Client connects
-    → HandleHandshake()
+    → HandleHandshake()                         (internal)
         → SslStream.BeginAuthenticateAsServer()
-        → OnHandshaking()
-    → ProcessHandshake() (async callback)
+        → OnHandshaking()                        ← override point
+        → Server.OnHandshakingInternal(this)
+    → ProcessHandshake() (async callback)         (internal)
         → SslStream.EndAuthenticateAsServer()
         → IsHandshaked = true
-        → ReceiveAsync()
-        → OnHandshaked()
+        → TryReceive()
+        → OnHandshaked()                          ← override point
+        → Server.OnHandshakedInternal(this)
 ```
 
-The handshake uses the certificate and protocol from the parent `SslServer.Context`. If the handshake fails, the session disconnects automatically.
+The handshake uses the certificate, client-certificate-required flag, and protocols from the parent `SslServer.Context`. If the handshake throws, the session sends a socket error and disconnects.
+
+Overriding `OnHandshaking()` and `OnHandshaked()` in a session subclass lets you hook into the TLS lifecycle without touching handshake internals. (Both are inherited hook methods; their exact accessibility is defined on the base class, not on `SslSession`.)
 
 ---
 
 ## Send / Receive
 
-All public `Send` and `SendAsync` overloads check `IsHandshaked` before proceeding. Data is written to and read from `SslStream` rather than the raw socket:
-
-```csharp
-// Send path: writes to SslStream
-HandleSend()    → _sslStream.Write(buffer)
-HandleAsyncSend() → _sslStream.WriteAsync(buffer, token)
-HandleAsyncFlush() → _sslStream.FlushAsync(token)
-
-// Receive path: reads from SslStream
-HandleReceive() → _sslStream.Read(buffer, offset, size)
-HandleTryReceive() → _sslStream.BeginRead(...)
-```
-
-Unlike `StreamSessionTransport`, SSL async sends are **not batched** — each `HandleAsyncSend` writes directly to `SslStream.WriteAsync`. Batching is handled at the TLS record layer by the OS.
+Public send/receive entry points all gate on `IsHandshaked` before delegating to the base implementation, which in turn drives data through the `SslStream` rather than the raw socket. The actual stream I/O (`_sslStream.Write`, `_sslStream.Read`, `_sslStream.BeginRead`, `_sslStream.BeginWrite`) is performed in internal overrides and is not part of the public surface.
 
 ---
 
 ## Inherited API
 
-All public send, receive, disconnect, statistics, and lifecycle hook methods are inherited from `SessionTransport`. See [SessionTransport](transport-session.md).
+All other public send, receive, disconnect, statistics, and lifecycle hook methods are inherited from `SessionTransport`.
 
 ---
 
 ## Remarks
 
-- `SslStream` is created with `leaveInnerStreamOpen: false` — the underlying `NetworkStream` is disposed when the SSL stream is disposed.
-- A `Guid` (`_sslStreamId`) is used to guard against stale async callbacks arriving after reconnection.
-- `HandleShutdown()` disposes the `SslStream` first, then calls `Socket.Shutdown(SocketShutdown.Both)`.
-- Overriding `OnHandshaking()` and `OnHandshaked()` in your session subclass lets you hook into the TLS lifecycle without touching handshake internals.
+- `SslStream` is constructed with `leaveInnerStreamOpen: false` — the underlying `NetworkStream` is disposed when the SSL stream is disposed.
+- If the parent `SslServer.Context` has a `CertificateValidationCallback`, it is passed into the `SslStream` constructor; otherwise the default validation is used.

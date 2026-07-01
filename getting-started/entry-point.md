@@ -58,4 +58,6 @@ The attribute takes two parameters:
 - **Command string** — the text the user types in the console (e.g. `/start proxy`)
 - **Description** — shown in the help listing
 
-Custom commands are auto-discovered alongside servers, handlers, and managers at startup.
+Custom commands are auto-discovered alongside servers, handlers, middlewares managers and route at startup.
+
+---

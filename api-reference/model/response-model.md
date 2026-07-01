@@ -234,3 +234,5 @@ protected void GetHandle([Data] RequestModel request, [Session] HttpsSession ses
 - `Status` is populated only during receive parsing (via `OnHeaderParsed`). When building a response, read the status from the integer you passed to `SetBegin`, not from `Status`.
 - `MakeOptionsResponse()` writes `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Allow-Credentials`, `Access-Control-Allow-Origin`, and `Access-Control-Max-Age` with default values. Call `SetHeader` after if you need to override specific CORS fields.
 - Status phrases are resolved from LuciferCore's built-in phrase table. If you supply an unrecognized status code, the phrase defaults to `Unknown`.
+
+---

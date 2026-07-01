@@ -38,4 +38,6 @@ public class MyServer : TcpServer
 
 ## Inherited API
 
-All server lifecycle, socket options, session management, and multicast methods are inherited from `ServerTransport`. See [ServerTransport](transport-server.md).
+All server lifecycle, socket options, session management, and multicast methods are inherited from `ServerTransport`.
+
+---

@@ -212,3 +212,5 @@ The only structural variation between a request and a response is **which token 
 - `Content-Length` is computed and written automatically by `SetBody`. Do not set it manually.
 - `AddHeader` after `SetBody` performs a mid-buffer byte-shift. It is correct but has linear cost proportional to body size. Prefer calling all `SetHeader` before `SetBody`.
 - Cookie parsing is handled automatically during `ReceiveHeader`. Override `ParseCookieHeader` in a subclass to customize extraction behavior.
+
+---

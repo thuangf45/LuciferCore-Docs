@@ -37,7 +37,3 @@ dotnet build
 ```
 
 ---
-
-## Next Step
-
-Once installed, head to [Quick Start](quick-start.md) to have your first server running in minutes.

@@ -171,3 +171,5 @@ internal class MyHandler : RouteHandler
 - Parameter type mismatches between `[Data]`/`[Session]` declarations and actual runtime types are caught at startup via `Debug.Assert`. A mismatched parameter receives `null` at runtime.
 - To add cross-cutting logic such as IP filtering or session validation, override `CanHandle()` on your handler subclass.
 - Query strings are stripped from `UrlRoute` automatically during route key construction — everything after `?` is ignored.
+
+---

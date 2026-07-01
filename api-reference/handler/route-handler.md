@@ -2,9 +2,9 @@
 
 **Namespace:** `LuciferCore.Handler`
 
-`RouteHandler` is the single abstract base class for all LuciferCore handlers. It owns the shared, lock-free routing table, the role cache, and the compiled dispatch pipeline.
+`RouteHandler` is the single abstract base class for all LuciferCore handlers. It owns the shared, lock-free routing table and the compiled dispatch pipeline (built via `Expression.Lambda` at startup — zero reflection at request time).
 
-The routing system is now **protocol-agnostic** — it does not care whether the incoming data is a WebSocket binary frame, an HTTP request, or any custom payload. Any data type that implements `IRoutable` can be routed. Any session that extends `SessionTransport` can carry it.
+The routing system is **protocol-agnostic** — it does not care whether the incoming data is a WebSocket binary frame, an HTTP request, or any custom payload. Any data type that implements `IRoutable` can be routed. Any session that extends `SessionTransport` can carry it.
 
 ```csharp
 public abstract class RouteHandler
@@ -42,7 +42,6 @@ Extend `RouteHandler` directly and decorate with `[Handler]`:
 internal class ChatHandler : RouteHandler
 {
     [WsMessage("ChatMessage")]
-    [Safe("")]
     [RateLimiter(20, 1)]
     [Authorize(UserRole.Guest)]
     public void SendChat([Session] ChatSession session, [Data] PacketModel data)
@@ -58,12 +57,10 @@ internal class ChatHandler : RouteHandler
 internal class UserHandler : RouteHandler
 {
     [HttpGet("")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
     protected void GetUser([Data] RequestModel request, [Session] HttpsSession session) { ... }
 
     [HttpPost("")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
     protected void CreateUser([Data] RequestModel request, [Session] HttpsSession session) { ... }
 }
@@ -76,37 +73,34 @@ Both handlers extend the same `RouteHandler`. The difference is only in which `I
 ## Shared State
 
 ```csharp
-protected static readonly Utf8Map<RouteEntry>                           Routes;
-protected static readonly ConcurrentDictionary<MethodInfo, UserRole>    RoleCache;
+private static readonly Utf8Map<RouteEntry> s_routes;
 ```
 
 | Field | Description |
 |---|---|
-| `Routes` | Lock-free UTF-8 key → `RouteEntry` map. Built once at startup from all `[Handler]`-decorated classes. Frozen by `Optimize()` before the first request |
-| `RoleCache` | Per-method role requirement cache. Populated lazily on first access using `[Authorize]` metadata |
-
-Both fields are `static` and shared across all handler instances regardless of protocol.
+| `s_routes` | Lock-free UTF-8 key → `RouteEntry` map. Built once in the static constructor from all `[Handler]`-decorated classes, then frozen via `s_routes.Freeze()` before the first request can be served |
 
 ---
 
 ## Dispatch Pipeline
 
-Every incoming routable payload flows through `ResolveRoute()`:
+Every incoming routable payload flows through `RouteHandler.Route()`:
 
-```
-IRoutable.MethodRoute + IRoutable.UrlRoute
+```csharp
+RouteHandler.Route(data, session)
     ↓
-BuildKey(data)  →  "METHOD:/version/prefix/path"
+Lucifer.Allow(session)            →  blocked if session-level rate limit exceeded
     ↓
-Routes.TryGetValue(key)        →  404 error if not found
+ResolveRoute(data, session)
+    ├─ BuildKey(data)              →  "METHOD:/version/prefix/path"
+    ├─ s_routes.TryGetValue(key)   →  null if no matching route (Debug.Assert in dev)
+    └─ CanHandle(data, session, entry)
+           └─ runs entry.Middlewares in order via MiddlewareHandler.Middleware()
+              → false on any middleware rejection
     ↓
-CanHandle(data, session, method)
-    ├─ Lucifer.Allow(method)   →  429 Too Many Requests if rate-limited
-    └─ RoleCache / [Authorize] →  403 Forbidden if role insufficient
+RouteEntry
     ↓
-RouteEntry  (returned to caller)
-    ↓
-SyncInvoker / AsyncInvoker
+entry.SyncInvoker(data, session)  /  entry.AsyncInvoker(data, session)
 ```
 
 ---
@@ -118,8 +112,9 @@ SyncInvoker / AsyncInvoker
 ```csharp
 public sealed class RouteEntry
 {
-    public Action<RouteHandler, IRoutable, SessionTransport>?          SyncInvoker  { get; init; }
-    public Func<RouteHandler, IRoutable, SessionTransport, Task>?      AsyncInvoker { get; init; }
+    public UseMiddlewareAttribute[]?                    Middlewares  { get; init; }
+    public Action<IRoutable, SessionTransport>?         SyncInvoker  { get; init; }
+    public Func<IRoutable, SessionTransport, Task>?     AsyncInvoker { get; init; }
     public required MethodInfo Method  { get; init; }
     public required bool       IsAsync { get; init; }
 }
@@ -127,34 +122,39 @@ public sealed class RouteEntry
 
 | Property | Description |
 |---|---|
-| `Method` | Reflection metadata. Used for rate limiting and role checks |
+| `Middlewares` | The `[UseMiddleware]` attributes declared on the route method, sorted by `Order`. Checked by `CanHandle()` before invocation |
+| `Method` | Reflection metadata, kept on the entry for diagnostics/logging |
 | `IsAsync` | `true` if the method returns `Task` |
-| `SyncInvoker` | Compiled sync delegate. `null` for async routes |
-| `AsyncInvoker` | Compiled async delegate. `null` for sync routes |
+| `SyncInvoker` | Compiled sync delegate `(IRoutable, SessionTransport) => void`. `null` for async routes |
+| `AsyncInvoker` | Compiled async delegate `(IRoutable, SessionTransport) => Task`. `null` for sync routes |
+
+> Note: invokers are bound to the handler **singleton instance** at compile time (captured as a constant in the expression tree) — they do not take the handler instance as a parameter.
 
 ---
 
 ## CanHandle
 
 ```csharp
-public virtual bool CanHandle(IRoutable data, SessionTransport session, MethodInfo method)
+private static bool CanHandle(IRoutable data, SessionTransport session, RouteEntry entry)
 ```
 
-Runs rate limit and authorization checks. Returns `false` and sends an error response if either check fails. Override to add custom cross-cutting logic such as IP filtering or session validation.
+`CanHandle` is `private static` — it is **not** an override point on your handler subclass. It runs each middleware declared in `entry.Middlewares`, injecting the middleware attribute into `data` and delegating the actual allow/deny decision to `MiddlewareHandler.Middleware()`. If no middlewares are attached, the route is allowed by default.
+
+To add cross-cutting logic such as IP filtering, auth checks, or session validation, write a `[Middleware]` class and attach it with `[UseMiddleware("name")]`
 
 ---
 
 ## Startup Registration
 
-At startup, `RouteHandler.RegisterRoutes(Type t)` is called for every `[Handler]`-decorated class:
+At startup (inside `RouteHandler`'s static constructor), for every `[Handler]`-decorated, non-abstract class:
 
-1. Reads `[Handler]` for `version` and `prefix`.
-2. Enumerates all methods with routing attributes (`[WsMessage]`, `[HttpGet]`, etc.).
-3. Assembles the dispatch key: `METHOD:/{version}/{prefix}/{path}`.
-4. Compiles sync/async invoker delegates via `Expression.Lambda`.
-5. Inserts the `RouteEntry` into `Routes`.
+1. `Lucifer.SetModelI(handler)` creates the handler singleton.
+2. `RegisterRoutes(Type t)` reads `[Handler]` for `Version` and `Prefix`.
+3. Enumerates all methods with `[Route]`-derived attributes (`[WsMessage]`, `[HttpGet]`, etc.) via `Lucifer.GetMethodsWithAttribute<RouteAttribute>`.
+4. `BuildRouteEntry()` validates that `[Data]` parameters implement `IRoutable` and `[Session]` parameters inherit `SessionTransport`, then compiles sync/async invoker delegates via `Expression.Lambda`.
+5. Assembles the dispatch key `METHOD:/{version}/{prefix}/{path}` and inserts the `RouteEntry` into `s_routes`.
 
-After all classes are registered, `RouteHandler.Optimize()` freezes `Routes`.
+After all classes are registered, `s_routes.Freeze()` is called once, locking the map for fast concurrent reads at request time.
 
 ---
 
@@ -181,7 +181,6 @@ Then handle it exactly like any other routable type:
 internal class MyHandler : RouteHandler
 {
     [WsMessage("Action")]
-    [Safe("")]
     public void Handle([Data] MyPacket packet, [Session] MySession session) { ... }
 }
 ```
@@ -190,7 +189,8 @@ internal class MyHandler : RouteHandler
 
 ## Remarks
 
-- There are no longer protocol-specific handler base classes (`WssHandlerBase`, `WsHandlerBase`, `HttpHandlerBase`, `HttpsHandlerBase`). `RouteHandler` is the single base for all handlers.
-- Type mismatches between `[Data]`/`[Session]` parameter types and actual runtime types are caught at startup via `Debug.Assert` and the mismatched parameter receives `null`.
-- `CanHandle()` is `virtual` — override it for custom cross-cutting logic.
-- Query strings are stripped from `UrlRoute` automatically during key construction (everything after `?`).
+- `RouteHandler` is the single base for all handlers.
+- Type mismatches between `[Data]`/`[Session]` parameter declarations and actual runtime types are caught at startup; the mismatched parameter is bound to a `null` constant instead of throwing.
+- `CanHandle()` is private and not overridable — extend behavior through `[Middleware]` + `[UseMiddleware]` instead.
+
+---

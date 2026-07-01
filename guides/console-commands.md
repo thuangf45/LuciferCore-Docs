@@ -48,3 +48,5 @@ private static void CmdStopProxy() => Stop();
 - Command strings are case-sensitive by default. Use a consistent naming convention such as `/verb noun`.
 - Keep command handler methods thin — delegate to service methods (`Start()`, `Stop()`) rather than embedding logic directly.
 - Custom commands are discovered from any class in your assembly — no registration needed.
+
+---

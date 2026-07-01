@@ -209,3 +209,5 @@ client.SendRequest(req);
 - `MethodSpan`, `UrlSpan`, `BodySpan`, and all other span properties are zero-copy views into the internal `Cache` buffer. Do not store or use them after the request is disposed or returned to the pool.
 - Methods `GET`, `HEAD`, `DELETE`, `OPTIONS`, and `TRACE` are treated as body-less by the receive pipeline — `BodyLength` is set to `0` for these verbs regardless of any incoming bytes.
 - Cookie entries are parsed automatically from the `Cookie` header during `ReceiveHeader`. Each `name=value` pair becomes a separate entry in the cookie list.
+
+---

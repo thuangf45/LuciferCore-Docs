@@ -24,19 +24,20 @@ The example above allows a maximum of **10 messages per second** per connection.
 
 ## Forwarding to the Dispatcher
 
-Override the appropriate `On*` methods and forward directly to `Lucifer.Dispatch()`. Do not add logic here — keep the session layer thin.
+Override the appropriate `On*` methods and forward directly to `Lucifer.Route()`. Do not add logic here — keep the session layer thin.
 
 ```csharp
-// Forward incoming WebSocket binary frames
 protected override void OnWsReceived(byte[] buffer, long offset, long size)
-    => Lucifer.Route(buffer, offset, size, this);
+{
+
+}
 
 // Forward incoming HTTP requests
 protected override void OnReceivedRequest(RequestModel request)
     => Lucifer.Route(request, this);
 ```
 
-`Lucifer.Dispatch()` routes each message through the zero-allocation pipeline to the correct handler method based on the message type or HTTP route.
+`Lucifer.Route()` routes each message through the zero-allocation pipeline to the correct handler method based on the message type or HTTP route.
 
 ---
 
@@ -51,7 +52,9 @@ public partial class ChatSession : WssSession
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnWsReceived(byte[] buffer, long offset, long size)
-        => Lucifer.Route(buffer, offset, size, this);
+    {
+
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnReceivedRequest(RequestModel request)
@@ -62,9 +65,3 @@ public partial class ChatSession : WssSession
 > The `partial` modifier is required — LuciferCore's source generator may extend your session class at compile time.
 
 ---
-
-## Next Steps
-
-With the session configured, define the handlers that process each message type:
-- [WebSocket Handler](websocket-handler.md)
-- [HTTP Handler](http-handler.md)

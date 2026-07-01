@@ -1,8 +1,8 @@
 # SessionTransport
 
-**Namespace:** `LuciferCore.NetCoreServer.Transport`
+**Namespace:** `LuciferCore.NetCoreServer.Transport.Core`
 
-Base class for all server-side sessions. Manages a single client connection: send/receive pipeline, async Channel-based send loop, statistics, and lifecycle hooks.
+Base session transport for handling client connections with async send/receive.
 
 ```csharp
 public class SessionTransport : IDisposable
@@ -10,85 +10,17 @@ public class SessionTransport : IDisposable
 
 ---
 
-## Identity & Connection State
+## Properties
 
 | Property | Type | Description |
 |---|---|---|
-| `Id` | `long` | Unique session identifier assigned by the server |
-| `Server` | `ServerTransport` | The server that owns this session |
-| `Socket` | `Socket` | The underlying socket for this connection |
-| `IsConnected` | `bool` | `true` while the session has an active connection |
-| `IsDisposed` | `bool` | `true` after `Dispose()` has been called |
-| `IsSocketDisposed` | `bool` | `true` after the underlying socket has been released |
-
----
-
-## Options
-
-| Property | Default | Description |
-|---|---|---|
-| `OptionSendBufferSize` | `8192` | Initial send buffer size in bytes |
-| `OptionSendBufferLimit` | `0` | Max send buffer size. `0` = unlimited |
-| `OptionReceiveBufferSize` | `8192` | Initial receive buffer size in bytes |
-| `OptionReceiveBufferLimit` | `0` | Max receive buffer size. `0` = unlimited |
-
----
-
-## Statistics
-
-| Property | Type | Description |
-|---|---|---|
-| `BytesPending` | `long` | Bytes waiting in the send queue |
-| `BytesSending` | `long` | Bytes currently being sent |
-| `BytesSent` | `long` | Total bytes sent since connection |
-| `BytesReceived` | `long` | Total bytes received since connection |
-
----
-
-## Send API
-
-```csharp
-long Send(ReadOnlySpan<byte> buffer)     // synchronous send
-long Send(ReadOnlySpan<char> text)       // UTF-8 encode then send
-bool SendAsync(ReadOnlySpan<byte> data)  // enqueue for async send
-bool SendAsync(ReadOnlySpan<char> text)  // enqueue for async send
-bool SendAsync(Buffer buffer)            // enqueue pooled Buffer
-```
-
-## Receive API
-
-```csharp
-long   Receive(byte[] buffer)
-long   Receive(byte[] buffer, long offset, long size)
-string Receive(long size)                // receive as UTF-8 string
-void   ReceiveAsync()                    // start async receive loop
-```
-
-## Disconnect
-
-```csharp
-bool Disconnect()
-```
-
----
-
-## Lifecycle Hooks
-
-Override these in your session subclass:
-
-| Method | When called |
-|---|---|
-| `OnConnecting()` | Before connection is established |
-| `OnConnected()` | After connection is fully established |
-| `OnHandshaking()` | During TLS/WebSocket handshake |
-| `OnHandshaked()` | After handshake completes |
-| `OnDisconnecting()` | Before disconnect |
-| `OnDisconnected()` | After disconnect |
-| `OnReceived(byte[] buffer, long offset, long size)` | When data arrives — primary receive hook |
-| `OnSent(long sent, long pending)` | After data is sent |
-| `OnEmpty()` | When the send queue drains to zero |
-
----
+| `Server` | `ServerTransport` | Parent server instance |
+| `Socket` | `Socket` | Underlying network socket |
+| `Cache` | `Buffer` | Session cache buffer |
+| `SessionInfo` | `ref SessionInfo` | Session information struct reference (options, metrics, id, etc.) |
+| `IsConnected` | `bool` | True if session connected |
+| `IsDisposed` | `bool` | True if session disposed |
+| `IsSocketDisposed` | `bool` | True if socket disposed |
 
 ## Events
 
@@ -96,4 +28,54 @@ Override these in your session subclass:
 event Action<SocketError>? OnSocketError
 ```
 
-Raised on socket errors. Subscribe to log or handle transport-level failures.
+Socket error event handler.
+
+---
+
+## Send API
+
+```csharp
+long Send<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
+```
+
+Sends generic data synchronously/asynchronously. Supports `byte` and `char` spans directly; other unmanaged types are sent as their byte representation.
+
+## Receive API
+
+```csharp
+long   Receive(byte[] buffer)
+long   Receive(byte[] buffer, long offset, long size)
+string Receive(long size)   // receives and decodes as UTF-8 text
+```
+
+## Disconnect / Dispose
+
+```csharp
+bool Disconnect()
+void Dispose()
+```
+
+---
+
+## Lifecycle Hooks
+
+Protected, overridable in a derived session class:
+
+| Method | When called |
+|---|---|
+| `OnConnecting()` | Before session connects |
+| `OnConnected()` | After session connected |
+| `OnHandshaking()` | During handshaking |
+| `OnHandshaked()` | After handshake completed |
+| `OnDisconnecting()` | Before session disconnects |
+| `OnDisconnected()` | After session disconnected |
+| `OnReceived(byte[] buffer, long offset, long size)` | When data received |
+| `OnSent(long sent, long pending)` | When data sent |
+| `OnEmpty()` | When send queue is empty |
+| `Dispose(bool disposingManagedResources)` | Dispose pattern implementation |
+| `ApplySocketOptions()` | Applies socket options from server configuration (keep-alive, no-delay) |
+| `TryReceive()` | Attempts async receive if not already receiving |
+| `TrySend()` | Attempts to send pending data |
+
+---

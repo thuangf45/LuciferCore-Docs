@@ -23,7 +23,14 @@ public UdsServer(UnixDomainSocketEndPoint endpoint)
 
 ## Socket
 
-Uses `SocketType.Stream` with `ProtocolType.Unspecified` and `AddressFamily.Unix`. Standard TCP socket options (keep-alive, no-delay, dual-mode) are not applied — `ApplySocketOptions()` is a no-op.
+```csharp
+protected override Socket CreateSocket() 
+    => new(Endpoint.AddressFamily, SocketType.Stream, ProtocolType.Unspecified);
+
+protected override void ApplySocketOptions() { } // no-op
+```
+
+Uses `SocketType.Stream` with `ProtocolType.Unspecified` (rather than `ProtocolType.Tcp`, since this isn't a TCP socket) over `AddressFamily.Unix`. Standard TCP socket options (keep-alive, no-delay, dual-mode) don't apply to UDS, so `ApplySocketOptions()` is overridden as a no-op.
 
 ---
 
@@ -44,4 +51,6 @@ public class MyServer : UdsServer
 
 ## Inherited API
 
-All server lifecycle, session management, and multicast methods are inherited from `ServerTransport`. See [ServerTransport](transport-server.md).
+All server lifecycle, session management, and multicast methods are inherited from `ServerTransport`.
+
+---

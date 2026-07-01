@@ -284,7 +284,6 @@ session.Send(msg);
 internal class PushHandler : RouteHandler
 {
     [WsMessage("alerts")]
-    [Safe("")]
     [Authorize(UserRole.Guest)]
     public void OnAlert([Session] MySession session, [Data] PushMessageModel msg)
     {
@@ -308,3 +307,5 @@ Before shipping a custom `HttpModel` subclass:
 - Quick builders call `Clear()` first — consistent with the `RequestModel` / `ResponseModel` convention.
 - Any extra parsed fields are populated in `OnHeaderParsed()`, not in property getters.
 - Instances are obtained via `Lucifer.Rent<T>()` and released with `using` or `Lucifer.Return`.
+
+---

@@ -1,6 +1,6 @@
 # ServerTransport
 
-**Namespace:** `LuciferCore.NetCoreServer.Transport`
+**Namespace:** `LuciferCore.NetCoreServer.Transport.Core`
 
 Base class for all servers. Manages the accept loop, session registry, multicasting, and server lifecycle.
 
@@ -10,52 +10,79 @@ public class ServerTransport : IDisposable
 
 ---
 
+## Constructing a Server
+
+`ServerTransport` is constructed internally — subclasses inherit one of the protected constructors and pass through an address/port, endpoint, or DNS endpoint:
+
+```csharp
+internal ServerTransport(IPAddress address, int port)
+internal ServerTransport(string address, int port)
+internal ServerTransport(DnsEndPoint endpoint)
+internal ServerTransport(IPEndPoint endpoint)
+```
+
+---
+
 ## Identity & State
 
-| Property | Type | Description |
+Most identity/runtime fields live on `ServerInfo`, accessed via the `ServerInfo` ref property, not as flat properties on the server itself:
+
+| Member | Type | Description |
 |---|---|---|
-| `Id` | `Guid` | Unique server identifier |
+| `ServerInfo.Id` | `Guid` | Unique server identifier, generated on construction |
+| `ServerInfo.Port` | `int` | Listening port |
 | `Address` | `string` | Listening address |
-| `Port` | `int` | Listening port |
-| `Endpoint` | `EndPoint` | Combined endpoint |
+| `Endpoint` | `EndPoint` | Combined endpoint. Refreshed to the actual bound endpoint after `Start()` |
 | `IsStarted` | `bool` | `true` when the server is running |
 | `IsAccepting` | `bool` | `true` while the accept loop is active |
-| `ConnectedSessions` | `long` | Number of currently connected sessions |
+| `ConnectedSessions` | `long` | Number of currently connected sessions (`_sessions.Count`) |
 
 ---
 
 ## Start / Stop
 
 ```csharp
-bool Start()
-bool Stop()
-bool Restart()
+virtual bool Start()
+virtual bool Stop()
+virtual bool Restart()
 ```
+
+| Method | Description |
+|---|---|
+| `Start()` | No-op if already started. Creates the acceptor socket, applies socket options, binds, refreshes `Endpoint`, resets `ServerInfo.Metric` counters, then begins accepting connections. |
+| `Stop()` | No-op if not started. Stops accepting, closes/disposes the acceptor socket, disconnects all sessions. |
+| `Restart()` | `Stop()` then waits for `IsStarted == false`, then `Start()`. |
 
 ---
 
 ## Socket Options
 
-| Property | Default | Description |
-|---|---|---|
-| `OptionAcceptorBacklog` | `1024` | Max pending connections in accept queue |
-| `OptionNoDelay` | `false` | Disable Nagle's algorithm |
-| `OptionKeepAlive` | `false` | Enable TCP keep-alive |
-| `OptionReuseAddress` | `false` | Allow address reuse |
-| `OptionDualMode` | `false` | Enable IPv4+IPv6 dual mode |
-| `OptionReceiveBufferSize` | `8192` | Per-session receive buffer |
-| `OptionSendBufferSize` | `8192` | Per-session send buffer |
-| `OptionReceiveBufferLimit` | `0` | Max per-session receive buffer. `0` = unlimited |
-| `OptionSendBufferLimit` | `0` | Max per-session send buffer. `0` = unlimited |
+Applied in `ApplySocketOptions()`, called from `Start()` before binding:
+
+| Option | Description |
+|---|---|
+| `ServerInfo.Options.OptionReuseAddress` | `SO_REUSEADDR` on the acceptor socket |
+| `ServerInfo.Options.OptionExclusiveAddressUse` | `SO_EXCLUSIVEADDRUSE` on the acceptor socket |
+| `ServerInfo.Options.OptionDualMode` | Enables IPv4+IPv6 dual mode — only applied when `Endpoint.AddressFamily == InterNetworkV6`, and must be set before `Listen()` |
+| `ServerInfo.Options.OptionAcceptorBacklog` | Passed to `_acceptorSocket.Listen()` as the pending-connection backlog size |
+
+> Override `ApplySocketOptions()` or `CreateSocket()` to customize socket setup (e.g. per-session buffer sizes, `NoDelay`, `KeepAlive`) — those are not applied at the server/acceptor level in this class.
 
 ---
 
 ## Session Management
 
 ```csharp
-bool DisconnectAll()
 SessionTransport? FindSession(long id)
+virtual bool DisconnectAll()
 ```
+
+| Method | Description |
+|---|---|
+| `FindSession(id)` | Looks up an active session by ID from the internal `_sessions` map. Returns `null` if not found. |
+| `DisconnectAll()` | Disconnects every currently connected session. Returns `false` if the server isn't started. |
+
+Session registration/unregistration (`RegisterSession`, `UnregisterSession`) is `internal` and handled automatically as connections are accepted and torn down — assigning each session a unique, incrementing `SessionInfo.Id`.
 
 ---
 
@@ -64,9 +91,14 @@ SessionTransport? FindSession(long id)
 Send data to all connected sessions simultaneously:
 
 ```csharp
-bool Multicast(Buffer buffer)
-bool Multicast(ReadOnlySpan<byte> data)
-bool Multicast(ReadOnlySpan<char> text)
+virtual bool Multicast<T>(ReadOnlySpan<T> data) where T : unmanaged
+```
+
+A single generic overload — works for any unmanaged element type (`byte`, `char`, etc. via `ReadOnlySpan<T>`). Returns `false` if the server isn't started or `data` is empty.
+
+```csharp
+server.Multicast<byte>(buffer.AsSpan());
+server.Multicast<char>("Hello, everyone!");
 ```
 
 ---
@@ -76,7 +108,7 @@ bool Multicast(ReadOnlySpan<char> text)
 Override to return your custom session type:
 
 ```csharp
-protected virtual SessionTransport CreateSession()
+protected virtual SessionTransport CreateSession() => new(this);
 ```
 
 ```csharp
@@ -87,15 +119,15 @@ protected override ChatSession CreateSession() => new(this);
 
 ## Lifecycle Hooks
 
-Override these in your server subclass:
+Override these `protected virtual` methods in your server subclass. Each is invoked through an internal wrapper (`OnConnectingInternal`, etc.) called by the transport layer:
 
 | Method | When called |
 |---|---|
-| `OnStarting()` / `OnStarted()` | Server start |
-| `OnStopping()` / `OnStopped()` | Server stop |
+| `OnStarting()` / `OnStarted()` | Around `Start()` — `OnStarted()` defaults to logging `"Started"` |
+| `OnStopping()` / `OnStopped()` | Around `Stop()` — `OnStopped()` defaults to logging `"Stopped"` |
 | `OnConnecting(session)` / `OnConnected(session)` | Client connects |
 | `OnHandshaking(session)` / `OnHandshaked(session)` | Handshake phase |
-| `OnDisconnecting(session)` / `OnDisconnected(session)` | Client disconnects |
+| `OnDisconnecting(session)` / `OnDisconnected(session)` | Client disconnects — `OnDisconnectedInternal` also unregisters the session from `_sessions` before calling `OnDisconnected()` |
 
 ---
 
@@ -105,4 +137,17 @@ Override these in your server subclass:
 event Action<SocketError>? OnSocketError
 ```
 
-Raised on socket errors at the server level.
+Raised via `SendError()` on socket errors at the server level. Connection-teardown errors (`ConnectionAborted`, `ConnectionRefused`, `ConnectionReset`, `OperationAborted`, `Shutdown`) are intentionally swallowed and never raise the event.
+
+---
+
+## Disposal
+
+```csharp
+void Dispose()
+protected virtual void Dispose(bool disposingManagedResources)
+```
+
+Standard dispose pattern. `Dispose()` calls `Stop()` if the server hasn't already been disposed, then marks `IsDisposed = true`. Override `Dispose(bool)` for custom cleanup, always calling `base.Dispose(disposing)`.
+
+---

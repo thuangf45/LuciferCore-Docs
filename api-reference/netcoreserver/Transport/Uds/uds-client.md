@@ -54,4 +54,6 @@ public class MyClient : UdsClient
 
 ## Inherited API
 
-All connect/disconnect, send/receive, statistics, and lifecycle hook methods are inherited from `StreamClientTransport` and `ClientTransport`. See [StreamClientTransport](transport-stream-client.md) and [ClientTransport](transport-client.md).
+All connect/disconnect, send/receive, statistics, and lifecycle hook methods are inherited from `StreamClientTransport` and `ClientTransport`.
+
+---

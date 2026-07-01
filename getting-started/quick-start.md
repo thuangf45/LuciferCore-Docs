@@ -60,7 +60,7 @@ public class ChatServer : WssServer
 
 ## Step 2 — Configure Your Session
 
-Apply `[RateLimiter]` at the session level and forward incoming messages to `Lucifer.Dispatch()`.
+Apply `[RateLimiter]` at the session level and forward incoming messages to `Lucifer.Route()`.
 
 ```csharp
 [RateLimiter(10, 1)]
@@ -69,52 +69,22 @@ public partial class ChatSession : WssSession
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChatSession(ChatServer server) : base(server) { }
 
-    // Forward binary WebSocket messages to the dispatcher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnWsReceived(byte[] buffer, long offset, long size)
-        => Lucifer.Dispatch(this, buffer, offset, size);
+    {
+
+    }
 
     // Forward HTTP requests to the dispatcher
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnReceivedRequest(RequestModel request)
-        => Lucifer.Dispatch(this, request);
+        => Lucifer.Route(request, this);
 }
 ```
 
 ---
 
 ## Step 3 — Implement Your Handlers
-
-### WebSocket Handler
-
-```csharp
-[Handler("v1", "wss")]
-internal class WssHandler : RouteHandler
-{
-    public ConcurrentQueue<(byte[], long, long)> Messages = new();
-
-    [WsMessage("GetMessage")]
-    [Authorize(UserRole.Guest)]
-    public void GetMessage([Session] ChatSession session, [Data] PacketModel data)
-    {
-        foreach (var (buffer, offset, length) in Messages)
-            session.SendBinaryAsync(buffer.AsSpan((int)offset, (int)length));
-    }
-
-    [WsMessage("ChatMessage")]
-    [Authorize(UserRole.Guest)]
-    public void SendChat([Session] ChatSession session, [Data] PacketModel data)
-    {
-        using var _ = data;
-        ((WssServer)session.Server).MulticastBinary(data.Buffer);
-    }
-
-    [WsMessage("Default")]
-    [Authorize(UserRole.Guest)]
-    public void Default([Session] ChatSession session, [Data] PacketModel data)
-        => throw new NotImplementedException();
-}
-```
 
 ### HTTP Handler
 
@@ -182,13 +152,12 @@ internal sealed class AuthGuardMiddleware : MiddlewareHandler
 Attach it to a handler method:
 
 ```csharp
-[WsMessage("ChatMessage")]
+[HttpGet("")]
 [UseMiddleware("AuthGuard")]
 [Authorize(UserRole.Guest)]
 public void SendChat([Session] ChatSession session, [Data] PacketModel data)
 {
-    using var _ = data;
-    ((WssServer)session.Server).MulticastBinary(data.Buffer);
+    
 }
 ```
 
@@ -208,18 +177,15 @@ public class ManagerMaster : ManagerBase
 {
     protected override void Setup()
     {
-        TimeDelay  = 1000;
-        ErrorDelay = 1000;
+       // Setup
     }
 
     protected override void Update()
     {
         Lucifer.Log(this, "Master is running....");
-    }
 
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
+        // update workload
+        workload = 10; // remaining job
     }
 }
 ```
@@ -237,8 +203,3 @@ Lucifer.CMD("/run"u8); // auto-discovers all [Server], [Handler], [Manager], [Se
 That's it. LuciferCore auto-discovers every decorated class and starts the full ecosystem.
 
 ---
-
-## Next Steps
-
-- Learn about each component in depth in the [Guides](../guides/defining-a-server.md) section.
-- Customize the entry point with [Console Commands](../guides/console-commands.md).

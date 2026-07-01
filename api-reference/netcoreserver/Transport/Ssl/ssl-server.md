@@ -19,13 +19,15 @@ public SslServer(SslContext context, IPEndPoint endpoint)
 public SslServer(SslContext context, DnsEndPoint endpoint)
 ```
 
+Each overload forwards `address`/`port`/`endpoint` to the matching `ServerTransport` base constructor, then assigns `Context`.
+
 ---
 
 ## Properties
 
 | Property | Type | Description |
 |---|---|---|
-| `Context` | `SslContext` | The SSL context used for all sessions on this server |
+| `Context` | `SslContext` | Get-only; the SSL context used for all sessions on this server, set once at construction |
 
 ---
 
@@ -37,10 +39,9 @@ public SslServer(SslContext context, DnsEndPoint endpoint)
 protected override SslSession CreateSession() => new(this);
 ```
 
-Override this in your subclass to return your custom session type:
+Override this in your subclass to return a custom session type:
 
 ```csharp
-[Server("ChatServer", 8443)]
 public class ChatServer : SslServer
 {
     public ChatServer(SslContext context, IPAddress address, int port)
@@ -54,11 +55,6 @@ public class ChatServer : SslServer
 
 ## Inherited API
 
-All server lifecycle, socket options, session management, and multicast methods are inherited from `ServerTransport`. See [ServerTransport](transport-server.md).
+All server lifecycle, socket options, session management, and multicast methods are inherited from `ServerTransport`.
 
 ---
-
-## Remarks
-
-- The `Context` is shared across all sessions. Do not mutate it after the server has started.
-- In `DEBUG` builds, use `SslContext.CreateDevelopmentContext()` to avoid needing a real certificate. See [SslContext](ssl-context.md).

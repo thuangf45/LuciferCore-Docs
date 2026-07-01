@@ -4,7 +4,7 @@
 
 `PooledObject` is the abstract base class for all objects managed by LuciferCore's internal object pool. It provides thread-safe reference counting so pooled objects can be safely shared across async contexts before being returned.
 
-All major LuciferCore model and utility types extend `PooledObject`: `PacketModel`, `RequestModel`, `ResponseModel`, `Buffer`, `Utf8Builder`, and more.
+All major LuciferCore model and utility types extend `PooledObject<T>`: `PacketModel`, `RequestModel`, `ResponseModel`, `Buffer`, `Utf8Builder`, and more.
 
 ---
 
@@ -25,6 +25,23 @@ This design means **no GC pressure** for hot-path objects: the same instances ar
 
 ```csharp
 public abstract class PooledObject
+public abstract class PooledObject<T> : PooledObject, IDisposable where T : PooledObject<T>
+```
+
+There are two base classes:
+
+| Class | Use when |
+|---|---|
+| `PooledObject` | You need pooling/ref-counting but want to implement `IDisposable` (or no disposal at all) yourself. |
+| `PooledObject<T>` | The common case — extend this with `T` set to your own class to get `Dispose()` for free. `Dispose()` calls `Lucifer.Return((T)this)` and `GC.SuppressFinalize(this)`. |
+
+In practice almost every concrete pooled type extends `PooledObject<T>` (self-referencing generic), e.g.:
+
+```csharp
+public class MyPooledModel : PooledObject<MyPooledModel>
+{
+    // Dispose() is already implemented by the base class
+}
 ```
 
 ---
@@ -96,7 +113,7 @@ Called internally by subclasses on every access to protected state. For example,
 ```csharp
 // Will throw ObjectDisposedException if called after Dispose():
 builder.Dispose();
-builder.Append("oops"u8); // ← throws: "Utf8Builder is already disposed or not rented from pool"
+builder.Append("oops"u8); // ← throws: "Object is already disposed or not rented from pool."
 ```
 
 Do not call `CheckSafety()` in your own application code — it is an internal guard for `PooledObject` subclass implementations.
@@ -106,7 +123,7 @@ Do not call `CheckSafety()` in your own application code — it is an internal g
 ### `Reset()` *(abstract, internal)*
 
 ```csharp
-protected internal abstract void Reset()
+protected internal abstract void Reset();
 ```
 
 Called by the pool when the reference count reaches `0`. Clears all internal state so the object is ready for reuse. Each concrete class implements this to return its own sub-resources (e.g. `Buffer`, cached data) back to their respective pools.
@@ -115,9 +132,19 @@ Do not call `Reset()` directly.
 
 ---
 
+### `Dispose()` *(on `PooledObject<T>` only)*
+
+```csharp
+public void Dispose()
+```
+
+Calls `Lucifer.Return((T)this)` (which decrements `RefCount`, and triggers `Reset()` + pool return when it hits `0`), then `GC.SuppressFinalize(this)`. Provided automatically by `PooledObject<T>` — you do not implement this yourself in the common case.
+
+---
+
 ## Subclassing
 
-If you need a custom type that participates in LuciferCore's pool, extend `PooledObject` and follow the four-section pattern below. This is the same pattern used internally by `PacketModel`, `RequestModel`, `ResponseModel`, `Buffer`, and `Utf8Builder`.
+If you need a custom type that participates in LuciferCore's pool, extend `PooledObject<T>` and follow the four-section pattern below. This is the same pattern used internally by `PacketModel`, `RequestModel`, `ResponseModel`, `Buffer`, and `Utf8Builder`.
 
 ---
 
@@ -152,7 +179,7 @@ public ReadOnlySpan<byte> Data
 
 ---
 
-### Section 3 — Lifecycle (`Reset` + `Dispose`)
+### Section 3 — Lifecycle (`Reset()` only — `Dispose()` is inherited)
 
 ```csharp
 [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -168,14 +195,9 @@ protected internal override void Reset()
     // IMPORTANT: Never call CheckSafety() or any property that calls it here.
     // RefCount is 0 at this point — the pool owns the object.
 }
-
-[MethodImpl(MethodImplOptions.AggressiveInlining)]
-public void Dispose()
-{
-    Lucifer.Return(this); // decrements RefCount → 0 → triggers Reset() → returned to pool
-    GC.SuppressFinalize(this); // prevent GC from calling finalizer — Zero-GC
-}
 ```
+
+> No need to write `Dispose()` yourself — `PooledObject<T>` already provides it as long as your class extends `PooledObject<MyPooledModel>`.
 
 ---
 
@@ -198,7 +220,7 @@ public void Initialize(byte[] source, int length)
 ### Complete Template
 
 ```csharp
-public class MyPooledModel : PooledObject, IDisposable
+public class MyPooledModel : PooledObject<MyPooledModel>
 {
     // ── Section 1: Fields (back door — used by Reset() only) ──────────────
     private byte[]? _data;
@@ -225,12 +247,7 @@ public class MyPooledModel : PooledObject, IDisposable
         // Never call CheckSafety() or any property here
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Dispose()
-    {
-        Lucifer.Return(this);
-        GC.SuppressFinalize(this);
-    }
+    // Dispose() is inherited from PooledObject<MyPooledModel> — no need to write it.
 
     // ── Section 4: Business logic ─────────────────────────────────────────
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -263,10 +280,11 @@ Lucifer.Return(model);
 
 | Rule | Reason |
 |---|---|
+| Extend `PooledObject<T>` (not bare `PooledObject`) unless you need custom disposal | Gives you `Dispose()` for free |
 | Public properties must call `CheckSafety()` | Catch use-after-dispose immediately |
 | `Reset()` must only access `_fields`, never properties | `RefCount` is `0` when `Reset()` runs — properties would throw |
-| Release sub-resources inside `Reset()`, not `Dispose()` | `Dispose()` just calls `Lucifer.Return(this)`, which triggers `Reset()` |
-| Always call `GC.SuppressFinalize(this)` in `Dispose()` | Prevents the GC finalizer from running — keeps the pipeline Zero-GC |
+| Release sub-resources inside `Reset()`, not `Dispose()` | `Dispose()` (inherited) just calls `Lucifer.Return(this)`, which triggers `Reset()` |
+| Don't write your own `Dispose()` on a `PooledObject<T>` subclass | The base class already implements it and calls `GC.SuppressFinalize` — keeps the pipeline Zero-GC |
 
 ---
 
@@ -277,3 +295,5 @@ Lucifer.Return(model);
 - `CheckSafety()` throws `ObjectDisposedException` when `RefCount <= 0`. Subclasses call it on every property access to detect use-after-dispose immediately rather than causing silent data corruption.
 - Never access a pooled object after calling `Lucifer.Return()` or after the `using` block ends — the instance may have been reset and re-rented by another caller.
 - In `DEBUG` builds, the pool layer includes additional assertions to catch double-returns and use-after-return bugs.
+
+---

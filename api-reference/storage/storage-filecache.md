@@ -137,3 +137,5 @@ Inserts framework-level default files if they are not already cached. Called int
 - After `Freeze()`, all write operations are rejected. Only `Find`, `TryGetValue`, and `Contains` remain valid.
 - `FileSystemWatcher` is attached per scanned path. File changes trigger automatic cache refresh without requiring a server restart.
 - Entries with a non-zero `timeout` are evicted lazily on access — no background timer thread is used.
+
+---
