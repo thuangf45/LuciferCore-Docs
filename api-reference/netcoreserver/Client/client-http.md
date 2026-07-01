@@ -2,10 +2,10 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Client`
 
-Plain HTTP client. Extends `TcpClient` with HTTP request building, response parsing, and a `Task`-based async request API with configurable timeout.
+Plain HTTP client. Extends `TcpClient` with HTTP request building and incremental response parsing.
 
 ```csharp
-public class HttpClient : TcpClient, IHttp
+public class HttpClient : TcpClient
 ```
 
 ---
@@ -13,10 +13,12 @@ public class HttpClient : TcpClient, IHttp
 ## Constructors
 
 ```csharp
+public HttpClient(string host)
+public HttpClient(DnsEndPoint endpoint)
 public HttpClient(IPAddress address, int port)
 public HttpClient(string address, int port)
 public HttpClient(IPEndPoint endpoint)
-public HttpClient(DnsEndPoint endpoint)
+public HttpClient(EndPoint endpoint, string address, int port)
 ```
 
 ---
@@ -25,47 +27,24 @@ public HttpClient(DnsEndPoint endpoint)
 
 | Property | Type | Description |
 |---|---|---|
-| `Request` | `RequestModel` | The current request being built or sent |
-| `Response` | `ResponseModel` | The most recently received response |
+| `Request` | `RequestModel` | The current request, lazily rented from the pool (`Lucifer.Rent<RequestModel>()`) on first access |
+| `Response` | `ResponseModel` | The current response, lazily rented from the pool on first access |
 
 ---
 
 ## Send API
 
-### Fire-and-forget (sync + async)
-
 ```csharp
 long SendRequest()
 long SendRequest(RequestModel request)
-long SendRequest(ReadOnlySpan<char> request)
-long SendRequest(ReadOnlySpan<byte> request)
 
 bool SendRequestAsync()
 bool SendRequestAsync(RequestModel request)
-bool SendRequestAsync(ReadOnlySpan<char> request)
-bool SendRequestAsync(ReadOnlySpan<byte> request)
 ```
 
-### Task-based with timeout (default: 1 second)
+`SendRequest()` / `SendRequestAsync()` send the client's current `Request`. Both overloads that take an explicit `RequestModel` automatically add a `Host` header (set to `Address`) before sending — you don't need to set it yourself.
 
-```csharp
-Task<ResponseModel> SendRequest(TimeSpan? timeout = null)
-Task<ResponseModel> SendRequest(RequestModel request, TimeSpan? timeout = null)
-```
-
-On timeout, the client disconnects and returns an empty `ResponseModel`.
-
-### HTTP verb shortcuts
-
-```csharp
-Task<ResponseModel> SendGetRequest(string url, TimeSpan? timeout = null)
-Task<ResponseModel> SendPostRequest(string url, string content, TimeSpan? timeout = null)
-Task<ResponseModel> SendPutRequest(string url, string content, TimeSpan? timeout = null)
-Task<ResponseModel> SendDeleteRequest(string url, TimeSpan? timeout = null)
-Task<ResponseModel> SendHeadRequest(string url, TimeSpan? timeout = null)
-Task<ResponseModel> SendOptionsRequest(string url, TimeSpan? timeout = null)
-Task<ResponseModel> SendTraceRequest(string url, TimeSpan? timeout = null)
-```
+There is no built-in `Task`-based await API, timeout handling, or HTTP-verb shortcut methods (`SendGetRequest`, etc.) in this class — requests are fire-and-forget; use the lifecycle hooks below to react to the response.
 
 ---
 
@@ -75,23 +54,22 @@ Override in your subclass:
 
 | Method | When called |
 |---|---|
-| `OnConnectedOrHandshaked()` | After TCP connection is established — pending request is sent here |
-| `OnReceivedResponseHeader(ResponseModel)` | Response headers parsed |
-| `OnReceivedResponse(ResponseModel)` | **Primary hook** — full response received |
-| `OnReceivedResponseError(ResponseModel, string)` | Response parse error |
+| `OnReceivedResponseHeader(ResponseModel)` | Response headers parsed. Default implementation is empty |
+| `OnReceivedResponse(ResponseModel)` | **Primary hook** — full response body received. Default implementation is empty |
+| `OnReceivedResponseError(ResponseModel, string)` | Header or body parse error — the client disconnects immediately after |
+
+---
+
+## Receive / Disconnect Behavior
+
+- `OnReceived` parses incrementally: header first (fires `OnReceivedResponseHeader`), then body (fires `OnReceivedResponse` and clears `Response` for reuse). A parse error at either stage fires `OnReceivedResponseError`, clears `Response`, and disconnects.
+- `OnDisconnected` flushes a response whose body was still pending (calls `OnReceivedResponse` with the partial response), then disposes and releases both `Request` and `Response` back to the pool before calling `base.OnDisconnected()`.
 
 ---
 
 ## Usage
 
 ```csharp
-var client = new HttpClient("api.example.com", 80);
-
-// Task-based
-var response = await client.SendGetRequest("/api/users");
-Console.WriteLine(response.Status);
-
-// Or extend for event-driven
 public class MyClient : HttpClient
 {
     public MyClient(string host) : base(host, 80) { }
@@ -99,10 +77,16 @@ public class MyClient : HttpClient
     protected internal override void OnReceivedResponse(ResponseModel response)
         => Console.WriteLine($"Status: {response.Status}");
 }
+
+var client = new MyClient("api.example.com");
+client.Connect();
+client.SendRequest(); // build up client.Request beforehand as needed
 ```
 
 ---
 
 ## Inherited API
 
-Connect/disconnect, socket options, statistics, and base lifecycle hooks are inherited from `TcpClient` and `ClientTransport`. See [ClientTransport](transport-client.md).
+Connect/disconnect, socket options, statistics, and base lifecycle hooks are inherited from `TcpClient`.
+
+---

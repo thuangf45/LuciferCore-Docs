@@ -2,10 +2,10 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Session`
 
-Plain HTTP session. Extends `TcpSession` and implements `IHttp` — handles incremental HTTP request parsing, static content serving, and response sending.
+Plain HTTP session. Extends `TcpSession` — handles incremental HTTP request parsing, static content serving, and response sending.
 
 ```csharp
-public class HttpSession : TcpSession, IHttp
+public class HttpSession : TcpSession
 ```
 
 ---
@@ -16,7 +16,7 @@ public class HttpSession : TcpSession, IHttp
 public HttpSession(HttpServer server)
 ```
 
-Not instantiated directly — returned by `HttpServer.CreateSession()`.
+Not instantiated directly — returned by `HttpServer.CreateSession()`. Captures a reference to the server's `Cache` at construction time.
 
 ---
 
@@ -24,8 +24,8 @@ Not instantiated directly — returned by `HttpServer.CreateSession()`.
 
 | Property | Type | Description |
 |---|---|---|
-| `Cache` | `FileCache` | Reference to the server's static content cache |
-| `Mapping` | `Utf8Map<ByteString>` | Reference to the server's URL→file mapping |
+| `Cache` | `FileCache` | Reference to the server's static content cache (captured in constructor) |
+| `Mapping` | `Utf8Map<ByteString>` | Reads through to the parent `HttpServer.Mapping` on each access |
 
 ---
 
@@ -33,15 +33,10 @@ Not instantiated directly — returned by `HttpServer.CreateSession()`.
 
 ```csharp
 long SendResponse(ResponseModel response)
-long SendResponse(ReadOnlySpan<char> response)
-long SendResponse(ReadOnlySpan<byte> response)
-
 bool SendResponseAsync(ResponseModel response)
-bool SendResponseAsync(ReadOnlySpan<char> response)
-bool SendResponseAsync(ReadOnlySpan<byte> response)
 ```
 
-Use `SendResponseAsync` on hot paths — it enqueues into the async send channel and returns immediately.
+`SendResponseAsync` enqueues into the async send path and returns immediately — prefer it on hot paths. (Both delegate to the generic `Send<byte>`/`SendAsync<byte>` inherited from `TcpSession`.)
 
 ---
 
@@ -51,11 +46,29 @@ Override these in your session subclass:
 
 | Method | When called |
 |---|---|
-| `OnReceivedRequestHeader(RequestModel)` | Request headers parsed — body may still be pending |
-| `OnReceivedRequest(RequestModel)` | **Primary hook** — full request ready. Override this to handle the request |
-| `OnReceivedRequestError(RequestModel, string)` | Parse error — session will be disconnected |
-| `OnReceivedCachedRequest(RequestModel, byte[])` | A static file cache hit — response sent automatically. Override to intercept |
-| `GetStaticPath(RequestModel)` | Override to customize static file path resolution |
+| `OnReceivedRequestHeader(RequestModel)` | Request headers parsed — body may still be pending. Default implementation is empty |
+| `OnReceivedRequest(RequestModel)` | **Primary hook** — full request ready and not served from cache. Default implementation is empty; override this to handle the request |
+| `OnReceivedRequestError(RequestModel, string)` | Parse error — session is disconnected immediately after |
+| `OnReceivedCachedRequest(RequestModel, byte[])` | Static file cache hit — default implementation sends the cached bytes via `SendAsync`. Override to intercept |
+
+To customize **which** requests are treated as static/cacheable, override `GetStaticPath(RequestModel)` on your `HttpServer` subclass, not on `HttpSession`.
+
+---
+
+## Request Dispatch Flow
+
+```csharp
+protected internal virtual void OnReceivedRequestInternal(RequestModel request)
+```
+
+Called once a full request is parsed. Behavior:
+
+1. If `Lucifer.Allow(this)` is `false` or `Lucifer.Overloaded` is `true`, the request is dropped (silently returns — the `Disconnect()` call is commented out in the current implementation).
+2. If the method is `GET` **and** the URL does not contain `/api` (case-insensitive), the session asks the parent `HttpServer` for `GetStaticPath(request)` and checks `Cache` for that path.
+   - **Hit** → calls `OnReceivedCachedRequest(request, bytes)` and returns (cached response sent, `OnReceivedRequest` is *not* called).
+   - **Miss**, non-GET, or `/api` URL → falls through to `OnReceivedRequest(request)`.
+
+This method also runs from `OnDisconnected()` if a request's body was still pending when the client disconnected, so it can fire without headers ever fully completing in the usual receive path.
 
 ---
 
@@ -74,10 +87,10 @@ public class MySession : HttpSession
 }
 ```
 
-In LuciferCore, `OnReceivedRequest` is wired to `Lucifer.Dispatch(this, request)` — the handler routing pipeline takes over from there.
-
 ---
 
 ## Inherited API
 
-All send, receive, disconnect, statistics, and base lifecycle hooks are inherited from `TcpSession` and `SessionTransport`. See [SessionTransport](transport-session.md).
+All send, receive, disconnect, statistics, and base lifecycle hooks are inherited from `TcpSession`.
+
+---

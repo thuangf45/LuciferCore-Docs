@@ -2,13 +2,11 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Server`
 
-Secure WebSocket server (WSS / WebSocket over TLS). Extends `HttpsServer` and implements `IWebSocket` — handles the TLS handshake, HTTP→WebSocket upgrade, and provides WebSocket multicast and session close APIs.
+Secure WebSocket server (WSS / WebSocket over TLS). Extends `HttpsServer` — handles WebSocket multicast and session close APIs over a TLS connection.
 
 ```csharp
-public class WssServer : HttpsServer, IWebSocket
+public class WssServer : HttpsServer
 ```
-
-This is the server class used in LuciferCore's `[Server]` attribute examples — the primary server type for production deployments.
 
 ---
 
@@ -17,98 +15,71 @@ This is the server class used in LuciferCore's `[Server]` attribute examples —
 ```csharp
 public WssServer(SslContext context, IPAddress address, int port)
 public WssServer(SslContext context, string address, int port)
-public WssServer(SslContext context, IPEndPoint endpoint)
 public WssServer(SslContext context, DnsEndPoint endpoint)
+public WssServer(SslContext context, IPEndPoint endpoint)
 ```
+
+All constructors zero-fill the internal `WsSendMask` (4-byte mask used when building outgoing frames).
 
 ---
 
 ## WebSocket Multicast
 
-Send a WebSocket frame to all connected sessions in a single pooled allocation:
+Send a WebSocket frame to all connected sessions in a single pooled allocation. Each method is generic over `T : unmanaged`, so it accepts either `ReadOnlySpan<char>` or `ReadOnlySpan<byte>` (and other unmanaged types via a raw byte-cast fallback):
 
 ```csharp
-bool MulticastText(ReadOnlySpan<char> text)
-bool MulticastText(ReadOnlySpan<byte> buffer)
-
-bool MulticastBinary(ReadOnlySpan<char> text)
-bool MulticastBinary(ReadOnlySpan<byte> buffer)
-
-bool MulticastPing(ReadOnlySpan<char> text)
-bool MulticastPing(ReadOnlySpan<byte> buffer)
+bool MulticastText<T>(ReadOnlySpan<T> text) where T : unmanaged
+bool MulticastBinary<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool MulticastPing<T>(ReadOnlySpan<T> data) where T : unmanaged
 ```
+
+- `MulticastText` sends `WS_FIN | WS_TEXT`
+- `MulticastBinary` sends `WS_FIN | WS_BINARY`
+- `MulticastPing` sends `WS_FIN | WS_PING`
+
+The underlying multi-purpose entry point is exposed as `public` on `WssServer` (unlike `WsServer`, where the byte-span overload is `private`):
+
+```csharp
+public bool MulticastData<T>(ReadOnlySpan<T> data, byte opcode, int status = 0) where T : unmanaged
+public bool MulticastData(ReadOnlySpan<byte> data, byte opcode, int status = 0)
+```
+
+`char` spans are appended into a pooled `Buffer` and sent as text bytes; `byte` spans are sent directly; other unmanaged types are reinterpreted as bytes via `MemoryMarshal.Cast`.
 
 ---
 
 ## Close All Sessions
 
 ```csharp
-bool CloseAll()
-bool CloseAll(int status)
-bool CloseAll(int status, ReadOnlySpan<char> text)
-bool CloseAll(int status, ReadOnlySpan<byte> buffer)
+bool CloseAll<T>(int status = 0, ReadOnlySpan<T> buffer = default) where T : unmanaged
 ```
 
-Sends a WebSocket Close frame to all sessions and then calls `DisconnectAll()`.
+Single generic method with default parameters (not separate overloads). Sends a WebSocket Close frame (`WS_FIN | WS_CLOSE`) with the given status/payload to all sessions, then calls `DisconnectAll()`.
 
 ---
 
 ## Session Factory
 
 ```csharp
-protected override WssSession CreateSession()
+protected override WssSession CreateSession() => new(this)
 ```
 
 Override to return a custom session type:
 
 ```csharp
-[Server("ChatServer", 8443)]
-public class ChatServer : WssServer
+public class MyWssServer : WssServer
 {
-    public ChatServer(SslContext context, IPAddress address, int port)
-        : base(context, address, port)
-    {
-        AddStaticContent(_staticContentPath);
-        Cache.Freeze();
+    public MyWssServer(SslContext context, int port)
+        : base(context, IPAddress.Any, port) { }
 
-        Mapping = new(true)
-        {
-            { "/", "/index.html" },
-            { "/404", "/404.html" }
-        };
-        Mapping.Freeze();
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ChatServer(int port) : this(CreateSslContext(), IPAddress.Any, port) { }
-
-    protected override ChatSession CreateSession() => new(this);
+    protected override WssSession CreateSession() => new MyWssSession(this);
 }
 ```
 
 ---
 
-## IWebSocket Hooks
-
-`WssServer` implements `IWebSocket` — override in your subclass to handle WebSocket lifecycle events at the server level:
-
-| Method | When called |
-|---|---|
-| `OnWsConnecting(RequestModel, ResponseModel)` | Validate the upgrade request. Return `false` to reject |
-| `OnWsConnected(RequestModel)` | Session upgrade complete |
-| `OnWsDisconnecting()` / `OnWsDisconnected()` | Session closing / closed |
-
-See [WebSocket Protocol Layer](ws-protocol.md) for the full `IWebSocket` interface.
-
----
-
 ## Inherited API
 
-SSL configuration is inherited from `SslServer`. See [SslServer](ssl-server.md). Static content (`Cache`, `Mapping`, `AddStaticContent`) is inherited from `HttpsServer`. See [HttpsServer](server-https.md). All server lifecycle and session management methods are inherited from `ServerTransport`. See [ServerTransport](transport-server.md).
+SSL configuration and static content (`Cache`, `Mapping`, `AddStaticContent`) are inherited from `HttpsServer`. All server lifecycle and session management methods are inherited from `ServerTransport`.
 
 ---
-
-## Remarks
-
-- `WssServer` serves both WSS and HTTPS on the same port — HTTP requests and WebSocket upgrades are dispatched through the same session.
-- Use `SslContext.CreateDevelopmentContext()` in `DEBUG` builds. See [SslContext](ssl-context.md).

@@ -2,10 +2,10 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Server`
 
-Plain WebSocket server (unencrypted). Extends `HttpServer` and implements `IWebSocket` — handles the HTTP→WebSocket upgrade and provides WebSocket multicast and session close APIs.
+Plain WebSocket server (unencrypted). Extends `HttpServer` — handles WebSocket multicast and session close APIs.
 
 ```csharp
-public class WsServer : HttpServer, IWebSocket
+public class WsServer : HttpServer
 ```
 
 ---
@@ -15,46 +15,46 @@ public class WsServer : HttpServer, IWebSocket
 ```csharp
 public WsServer(IPAddress address, int port)
 public WsServer(string address, int port)
-public WsServer(IPEndPoint endpoint)
 public WsServer(DnsEndPoint endpoint)
+public WsServer(IPEndPoint endpoint)
 ```
+
+All constructors zero-fill the internal `WsSendMask` (4-byte mask used when building outgoing frames).
 
 ---
 
 ## WebSocket Multicast
 
-Send a WebSocket frame to all connected sessions in a single pooled allocation:
+Send a WebSocket frame to all connected sessions in a single pooled allocation. Each method is generic over `T : unmanaged`, so it accepts either `ReadOnlySpan<char>` or `ReadOnlySpan<byte>` (and other unmanaged types via a raw byte-cast fallback):
 
 ```csharp
-bool MulticastText(ReadOnlySpan<char> text)
-bool MulticastText(ReadOnlySpan<byte> buffer)
-
-bool MulticastBinary(ReadOnlySpan<char> text)
-bool MulticastBinary(ReadOnlySpan<byte> buffer)
-
-bool MulticastPing(ReadOnlySpan<char> text)
-bool MulticastPing(ReadOnlySpan<byte> buffer)
+bool MulticastText<T>(ReadOnlySpan<T> text) where T : unmanaged
+bool MulticastBinary<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool MulticastPing<T>(ReadOnlySpan<T> data) where T : unmanaged
 ```
+
+- `MulticastText` sends `WS_FIN | WS_TEXT`
+- `MulticastBinary` sends `WS_FIN | WS_BINARY`
+- `MulticastPing` sends `WS_FIN | WS_PING`
+
+Internally, `char` spans are appended into a pooled `Buffer` and sent as UTF-8/text bytes; `byte` spans are sent directly; any other unmanaged type is reinterpreted as bytes via `MemoryMarshal.Cast`.
 
 ---
 
 ## Close All Sessions
 
 ```csharp
-bool CloseAll()
-bool CloseAll(int status)
-bool CloseAll(int status, ReadOnlySpan<char> text)
-bool CloseAll(int status, ReadOnlySpan<byte> buffer)
+bool CloseAll<T>(int status = 0, ReadOnlySpan<T> buffer = default) where T : unmanaged
 ```
 
-Sends a WebSocket Close frame to all sessions and then calls `DisconnectAll()`.
+Single generic method with default parameters (not separate overloads). Sends a WebSocket Close frame (`WS_FIN | WS_CLOSE`) with the given status/payload to all sessions, then calls `DisconnectAll()`.
 
 ---
 
 ## Session Factory
 
 ```csharp
-protected override WsSession CreateSession()
+protected override WsSession CreateSession() => new(this)
 ```
 
 Override to return a custom session type:
@@ -70,20 +70,8 @@ public class MyWsServer : WsServer
 
 ---
 
-## IWebSocket Hooks
-
-`WsServer` implements `IWebSocket` — override these in your subclass to handle WebSocket lifecycle events at the server level:
-
-| Method | When called |
-|---|---|
-| `OnWsConnecting(RequestModel, ResponseModel)` | Validate the upgrade request. Return `false` to reject |
-| `OnWsConnected(RequestModel)` | Session upgrade complete |
-| `OnWsDisconnecting()` / `OnWsDisconnected()` | Session closing / closed |
-
-See [WebSocket Protocol Layer](ws-protocol.md) for the full `IWebSocket` interface.
-
----
-
 ## Inherited API
 
-Static content (`Cache`, `Mapping`, `AddStaticContent`) is inherited from `HttpServer`. See [HttpServer](server-http.md). All server lifecycle and session management methods are inherited from `ServerTransport`. See [ServerTransport](transport-server.md).
+Static content (`Cache`, `Mapping`, `AddStaticContent`) and all server lifecycle / session management methods are inherited from `HttpServer` / `ServerTransport`.
+
+---

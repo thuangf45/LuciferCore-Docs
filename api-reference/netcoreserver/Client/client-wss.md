@@ -2,7 +2,7 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Client`
 
-Secure WebSocket client (WSS). Extends `HttpsClient` and implements `IWebSocket` — performs TLS handshake, HTTP→WebSocket upgrade, and provides the full WebSocket send/receive API over an encrypted connection.
+Secure WebSocket client (WSS). Extends `HttpsClient` and implements `IWebSocket` — performs the HTTP→WebSocket upgrade and provides the full WebSocket send/receive API over an encrypted (TLS) connection. Structurally identical to `WsClient`, differing only in base class and the `SslContext` parameter on every constructor.
 
 ```csharp
 public class WssClient : HttpsClient, IWebSocket
@@ -13,10 +13,11 @@ public class WssClient : HttpsClient, IWebSocket
 ## Constructors
 
 ```csharp
+public WssClient(SslContext context, string host)
+public WssClient(SslContext context, DnsEndPoint endpoint)
 public WssClient(SslContext context, IPAddress address, int port)
 public WssClient(SslContext context, string address, int port)
 public WssClient(SslContext context, IPEndPoint endpoint)
-public WssClient(SslContext context, DnsEndPoint endpoint)
 ```
 
 ---
@@ -25,74 +26,102 @@ public WssClient(SslContext context, DnsEndPoint endpoint)
 
 | Property | Type | Description |
 |---|---|---|
-| `IsWebSocket` | `bool` | `true` after TLS handshake + WebSocket upgrade both complete |
-| `WsNonce` | `byte[]` | The 16-byte random nonce used for `Sec-WebSocket-Key` |
+| `IsWebSocket` | `bool` | `true` once `_wsProtocol.WsHandshaked` is `true` |
+| `WsNonce` | `byte[]` (protected) | The nonce used for `Sec-WebSocket-Key`, exposed to subclasses via `_wsProtocol.WsNonce` |
+
+Internal field `_syncConnect` tracks whether `Connect()` (sync) vs. an async connect path was used.
+
+---
+
+## Connect / Close
+
+```csharp
+public override bool Connect()
+```
+Sets `_syncConnect = true`, then calls `base.Connect()`.
+
+```csharp
+public virtual bool Close<T>(int status = 0, ReadOnlySpan<T> buffer = default) where T : unmanaged
+```
+Sends a close frame via **synchronous** `SendClose`, then calls `Disconnect()`.
+
+```csharp
+public bool CloseAsync<T>(int status, ReadOnlySpan<T> buffer) where T : unmanaged
+```
+No default parameters. Still sends the close frame via **synchronous** `SendClose` (not `SendCloseAsync`), then calls `DisconnectAsync()`.
 
 ---
 
 ## Send API
 
-Identical to `WsClient`. Client frames are **masked** per RFC 6455.
+All send methods are generic over `T : unmanaged`, accepting either `ReadOnlySpan<byte>` or `ReadOnlySpan<char>` (routed through `WsClientProtocol.SendData` / `SendDataAsync`):
 
 ```csharp
-bool SendTextAsync(ReadOnlySpan<byte> buffer)
-bool SendBinaryAsync(ReadOnlySpan<byte> buffer)
-bool SendCloseAsync(int status, ReadOnlySpan<byte> buffer)
-bool SendPingAsync(ReadOnlySpan<byte> buffer)
-bool SendPongAsync(ReadOnlySpan<byte> buffer)
+long SendText<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendTextAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 
-// + sync variants: SendText, SendBinary, SendClose, SendPing, SendPong
-```
+long SendBinary<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendBinaryAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 
-## Close
+long SendClose<T>(int status, ReadOnlySpan<T> data) where T : unmanaged
+bool SendCloseAsync<T>(int status, ReadOnlySpan<T> data) where T : unmanaged
 
-```csharp
-bool Close()                                          // sync Disconnect
-bool CloseAsync()                                     // async DisconnectAsync
-bool CloseAsync(int status, ReadOnlySpan<byte> buffer)
-// + char overloads
-```
+long SendPing<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendPingAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 
-## Synchronous Receive
-
-```csharp
-string ReceiveText()
-Buffer ReceiveBinary()  // return to pool with Lucifer.Return() when done
+long SendPong<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendPongAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 ```
 
 ---
 
 ## WebSocket Lifecycle Hooks
 
-Same defaults as `WsClient`:
-
 | Method | Default behavior | When called |
 |---|---|---|
-| `OnWsConnecting(RequestModel)` | — | Before upgrade request |
-| `OnWsConnected(ResponseModel)` | — | Upgrade complete — `IsWebSocket` now `true` |
-| `OnWsReceived(byte[] buffer, long offset, long size)` | — | **Primary hook** |
-| `OnWsClose(...)` | `CloseAsync()` | Close frame received |
-| `OnWsPing(...)` | `SendPongAsync(payload)` | Auto-pong |
-| `OnWsDisconnecting()` / `OnWsDisconnected()` | — | Disconnect lifecycle |
-| `OnWsError(string)` / `OnWsError(SocketError)` | Forward error | Protocol/socket error |
+| `OnWsConnecting(RequestModel request)` | no-op | Fires from `OnConnected()` |
+| `OnWsConnecting(RequestModel request, ResponseModel response)` | returns `true` | Validate upgrade. Return `false` to reject |
+| `OnWsConnected(RequestModel request)` | no-op | Upgrade complete (request-based signature) |
+| `OnWsConnected(ResponseModel response)` | no-op | Upgrade complete (response-based signature) |
+| `OnWsDisconnecting()` | no-op | Before disconnect |
+| `OnWsDisconnected()` | no-op | After disconnect |
+| `OnWsReceived(byte[] buffer, long offset, long size)` | no-op | **Primary hook** |
+| `OnWsClose(byte[] buffer, long offset, long size, int status = 1000)` | `CloseAsync<byte>(status, [])` | Close frame received |
+| `OnWsPing(byte[] buffer, long offset, long size)` | `SendPongAsync` with ping payload | Ping frame received |
+| `OnWsPong(byte[] buffer, long offset, long size)` | no-op | Pong frame received |
+| `OnWsError(string error)` | `SendError(SocketError.SocketError)` | Protocol-level error |
+| `OnWsError(SocketError error)` | `SendError(error)` | Socket-level error |
+
+---
+
+## Connection flow notes
+
+`OnConnected()` calls `OnWsConnecting(Request)`. As with `WsClient`, the lines that would send the upgrade request (`SendRequest(Request)` / `SendRequestAsync(Request)`) are **commented out** in the current source.
+
+`IWebSocket.SendUpgrade(ResponseModel response)` is a **no-op** on `WssClient`, same as `WsClient` — clients don't send upgrade responses.
 
 ---
 
 ## Usage
 
 ```csharp
-var context = new SslContext(SslProtocols.Tls12);
-var client = new WssClient(context, "example.com", 443);
-client.ConnectAsync();
-client.SendBinaryAsync(packetBytes);
+public class ChatClient : WssClient
+{
+    public ChatClient(SslContext context, string host, int port)
+        : base(context, host, port) { }
 
-// Dev — skip cert validation
-var devContext = new SslContext(SslProtocols.Tls12, (_, _, _, _) => true);
-var devClient = new WssClient(devContext, "localhost", 8443);
+    protected internal override void OnWsConnected(ResponseModel response)
+        => Console.WriteLine("WSS connected");
+
+    protected internal override void OnWsReceived(byte[] buffer, long offset, long size)
+        => Console.WriteLine(Encoding.UTF8.GetString(buffer, (int)offset, (int)size));
+}
 ```
 
 ---
 
 ## Inherited API
 
-TLS state is inherited from `SslClient`. See [SslClient](ssl-client.md). HTTP request/response methods are inherited from `HttpsClient`. See [HttpsClient](client-https.md). Connect/disconnect is inherited from `ClientTransport`. See [ClientTransport](transport-client.md).
+TLS state is inherited from `HttpsClient` / `SslClient`. HTTP request/response methods are inherited from `HttpsClient`. Connect/disconnect is inherited from `ClientTransport`.
+
+---

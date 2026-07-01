@@ -13,10 +13,11 @@ public class WsClient : HttpClient, IWebSocket
 ## Constructors
 
 ```csharp
+public WsClient(string host)
+public WsClient(DnsEndPoint endpoint)
 public WsClient(IPAddress address, int port)
 public WsClient(string address, int port)
 public WsClient(IPEndPoint endpoint)
-public WsClient(DnsEndPoint endpoint)
 ```
 
 ---
@@ -25,70 +26,84 @@ public WsClient(DnsEndPoint endpoint)
 
 | Property | Type | Description |
 |---|---|---|
-| `IsWebSocket` | `bool` | `true` after the WebSocket upgrade completes |
-| `WsNonce` | `byte[]` | The 16-byte random nonce used for `Sec-WebSocket-Key`. Exposed for testing |
+| `IsWebSocket` | `bool` | `true` once `_wsProtocol.WsHandshaked` is `true` |
+| `WsNonce` | `byte[]` (protected) | The nonce used for `Sec-WebSocket-Key`, exposed to subclasses via `_wsProtocol.WsNonce` |
+
+Internal field `_syncConnect` tracks whether `Connect()` (sync) vs. an async connect path was used.
+
+---
+
+## Connect / Close
+
+```csharp
+public override bool Connect()
+```
+Sets `_syncConnect = true`, then calls `base.Connect()`.
+
+```csharp
+public virtual bool Close<T>(int status = 0, ReadOnlySpan<T> buffer = default) where T : unmanaged
+```
+Sends a close frame via **synchronous** `SendClose`, then calls `Disconnect()` (synchronous).
+
+```csharp
+public bool CloseAsync<T>(int status, ReadOnlySpan<T> buffer) where T : unmanaged
+```
+No default parameters. Notably still sends the close frame via **synchronous** `SendClose` (not `SendCloseAsync`), then calls `DisconnectAsync()`.
 
 ---
 
 ## Send API
 
-All overloads accept both `ReadOnlySpan<byte>` and `ReadOnlySpan<char>`. Client frames are **masked** per RFC 6455.
+All send methods are generic over `T : unmanaged`, so they accept either `ReadOnlySpan<byte>` or `ReadOnlySpan<char>` (routed through `WsClientProtocol.SendData` / `SendDataAsync`):
 
 ```csharp
-long SendText(ReadOnlySpan<byte> buffer)
-bool SendTextAsync(ReadOnlySpan<byte> buffer)
+// Text frames
+long SendText<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendTextAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 
-long SendBinary(ReadOnlySpan<byte> buffer)
-bool SendBinaryAsync(ReadOnlySpan<byte> buffer)
+// Binary frames
+long SendBinary<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendBinaryAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 
-long SendClose(int status, ReadOnlySpan<byte> buffer)
-bool SendCloseAsync(int status, ReadOnlySpan<byte> buffer)
+// Control frames
+long SendClose<T>(int status, ReadOnlySpan<T> data) where T : unmanaged
+bool SendCloseAsync<T>(int status, ReadOnlySpan<T> data) where T : unmanaged
 
-long SendPing(ReadOnlySpan<byte> buffer)
-bool SendPingAsync(ReadOnlySpan<byte> buffer)
+long SendPing<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendPingAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 
-long SendPong(ReadOnlySpan<byte> buffer)
-bool SendPongAsync(ReadOnlySpan<byte> buffer)
-```
-
-## Close
-
-```csharp
-bool Close()
-bool Close(int status)
-bool Close(int status, ReadOnlySpan<char> text)
-bool Close(int status, ReadOnlySpan<byte> buffer)  // sync Disconnect
-
-bool CloseAsync()
-bool CloseAsync(int status)
-bool CloseAsync(int status, ReadOnlySpan<char> text)
-bool CloseAsync(int status, ReadOnlySpan<byte> buffer)  // async DisconnectAsync
-```
-
-## Synchronous Receive
-
-```csharp
-string ReceiveText()
-Buffer ReceiveBinary()  // return to pool with Lucifer.Return() when done
+long SendPong<T>(ReadOnlySpan<T> data) where T : unmanaged
+bool SendPongAsync<T>(ReadOnlySpan<T> data) where T : unmanaged
 ```
 
 ---
 
 ## WebSocket Lifecycle Hooks
 
-Default behaviors are provided — override to customize:
+Override these `protected internal virtual` methods (all marked `AggressiveInlining`):
 
 | Method | Default behavior | When called |
 |---|---|---|
-| `OnWsConnecting(RequestModel)` | — | Before sending upgrade request |
-| `OnWsConnected(ResponseModel)` | — | Upgrade response received |
-| `OnWsReceived(byte[] buffer, long offset, long size)` | — | **Primary hook** — frame data received |
-| `OnWsClose(...)` | `CloseAsync()` | Close frame received |
-| `OnWsPing(...)` | `SendPongAsync(payload)` | Ping frame — auto-pong by default |
-| `OnWsPong(...)` | — | Pong frame received |
-| `OnWsDisconnecting()` / `OnWsDisconnected()` | — | Disconnect lifecycle |
-| `OnWsError(string)` | `SendError(SocketError.SocketError)` | Protocol error |
-| `OnWsError(SocketError)` | `SendError(error)` | Socket error |
+| `OnWsConnecting(RequestModel request)` | no-op | Fires from `OnConnected()`, before upgrade request handling |
+| `OnWsConnecting(RequestModel request, ResponseModel response)` | returns `true` | Validate the upgrade before it's accepted. Return `false` to reject |
+| `OnWsConnected(RequestModel request)` | no-op | Upgrade complete (request-based signature) |
+| `OnWsConnected(ResponseModel response)` | no-op | Upgrade complete (response-based signature) |
+| `OnWsDisconnecting()` | no-op | Before WebSocket disconnect |
+| `OnWsDisconnected()` | no-op | After WebSocket disconnect |
+| `OnWsReceived(byte[] buffer, long offset, long size)` | no-op | **Primary hook** — frame data received |
+| `OnWsClose(byte[] buffer, long offset, long size, int status = 1000)` | `CloseAsync<byte>(status, [])` | Close frame received |
+| `OnWsPing(byte[] buffer, long offset, long size)` | `SendPongAsync` with the ping payload | Ping frame received |
+| `OnWsPong(byte[] buffer, long offset, long size)` | no-op | Pong frame received |
+| `OnWsError(string error)` | `SendError(SocketError.SocketError)` | Protocol-level error |
+| `OnWsError(SocketError error)` | `SendError(error)` | Socket-level error |
+
+---
+
+## Connection flow notes
+
+`OnConnected()` is overridden to call `OnWsConnecting(Request)`. In the current code the lines that would actually send the upgrade request (`SendRequest(Request)` / `SendRequestAsync(Request)`) are **commented out** — worth being aware of when relying on this class as-is.
+
+`IWebSocket.SendUpgrade(ResponseModel response)` is implemented as a **no-op** on `WsClient` (`{ }`), unlike on `WsSession`/`WssSession` where it forwards to `SendResponseAsync` — clients don't send upgrade *responses*, only requests.
 
 ---
 
@@ -105,14 +120,12 @@ public class ChatClient : WsClient
     protected internal override void OnWsReceived(byte[] buffer, long offset, long size)
         => Console.WriteLine(Encoding.UTF8.GetString(buffer, (int)offset, (int)size));
 }
-
-var client = new ChatClient("example.com", 80);
-client.ConnectAsync();
-client.SendBinaryAsync(packetBytes);
 ```
 
 ---
 
 ## Inherited API
 
-HTTP request sending and response hooks are inherited from `HttpClient`. See [HttpClient](client-http.md). Connect/disconnect methods are inherited from `ClientTransport`. See [ClientTransport](transport-client.md).
+HTTP request sending and response hooks are inherited from `HttpClient`. Connect/disconnect methods are inherited from `ClientTransport`.
+
+---
