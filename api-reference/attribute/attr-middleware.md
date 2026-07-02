@@ -25,7 +25,7 @@ Marks a class as middleware.
 ### Declaration
 
 ```csharp
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Class)]
 public class MiddlewareAttribute : Attribute
 ```
 
@@ -107,7 +107,7 @@ Built-in role check.
 ### Declaration
 
 ```csharp
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, Inherited = true, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Method)]
 public class AuthorizeAttribute : UseMiddlewareAttribute
 ```
 
@@ -137,15 +137,8 @@ public AuthorizeAttribute(UserRole minRole = UserRole.User)
 public void SendChat([Session] ChatSession session, [Data] PacketModel data) { ... }
 ```
 
-```csharp
-[Handler("v1", "/api/admin")]
-[Authorize(UserRole.User)]
-internal class AdminHandler : RouteHandler { ... }
-```
-
 Notes:
-- Can be on class or method.
-- If method has its own `[Authorize]`, it can override class default.
+- Method-level only. Cannot be applied to a class.
 - If no `[Authorize]`, no role check.
 
 ---
@@ -159,7 +152,7 @@ Built-in rate limiter.
 ### Declaration
 
 ```csharp
-[AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Class)]
 public class RateLimiterAttribute : UseMiddlewareAttribute
 ```
 
