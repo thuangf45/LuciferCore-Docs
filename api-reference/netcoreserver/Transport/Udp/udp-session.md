@@ -2,7 +2,8 @@
 
 **Namespace:** `LuciferCore.NetCoreServer.Transport.UDP`
 
-Server-side UDP session bound to a specific remote `EndPoint`. Unlike TCP sessions, a `UdpSession` does not own its socket — it shares the server's single UDP socket and uses `Socket.SendTo` / `Socket.SendToAsync` to address outgoing datagrams to its specific endpoint.
+`UdpSession` is the server-side UDP session abstraction.  
+It extends `SessionTransport` and represents a logical remote endpoint for datagram handling.
 
 ```csharp
 public class UdpSession : SessionTransport
@@ -16,7 +17,8 @@ public class UdpSession : SessionTransport
 public UdpSession(UdpServer server)
 ```
 
-Not instantiated directly — created by `UdpServer.GetOrCreateSession()` on first datagram from a new endpoint.
+Created by `UdpServer.CreateSession()`.  
+You typically use a derived class and let the server create it.
 
 ---
 
@@ -24,42 +26,53 @@ Not instantiated directly — created by `UdpServer.GetOrCreateSession()` on fir
 
 | Property | Type | Description |
 |---|---|---|
-| `Endpoint` | `EndPoint?` | The remote endpoint this session represents |
 | `DatagramsSent` | `long` | Total datagrams sent by this session |
+| `Endpoint` | `EndPoint` | Remote endpoint associated with this session |
 
 ---
 
-## Send Pipeline
+## Public API
 
-Sends use `Socket.SendTo` / `Socket.SendToAsync` targeting `Endpoint`. Outgoing datagrams are batched per flush cycle — each datagram is sent individually (UDP has no stream batching):
+| Method | Description |
+|---|---|
+| `Disconnect()` | Disconnects this logical UDP session |
+| `Send<T>(ReadOnlySpan<T> data)` | Sends datagram to this session endpoint (sync) |
+| `SendAsync<T>(ReadOnlySpan<T> data)` | Sends datagram to this session endpoint (async) |
 
+---
+
+## Hooks you can override
+
+From `SessionTransport` (commonly used in UDP session subclasses):
+
+- `OnConnected()`
+- `OnDisconnecting()`
+- `OnDisconnected()`
+- `OnReceived(byte[] buffer, long offset, long size)`
+- `OnSent(long sent, long pending)`
+- `OnEmpty()`
+- `OnSocketError` event subscription
+
+---
+
+## Example custom session
+
+```csharp
+public class EchoUdpSession : UdpSession
+{
+    public EchoUdpSession(UdpServer server) : base(server) { }
+
+    protected override void OnReceived(byte[] buffer, long offset, long size)
+    {
+        Send<byte>(buffer.AsSpan((int)offset, (int)size));
+    }
+}
 ```
-SendAsync(buffer)
-    → HandleAsyncSend() — adds ArraySegment to _udpBatchList
-    → HandleAsyncFlush()
-        → foreach segment: Socket.SendToAsync(segment, Endpoint)
-        → DatagramsSent++
-        → _udpBatchList.Clear()
-```
-
-Unlike TCP, UDP datagrams cannot be merged — each segment in the batch is sent as a **separate `SendToAsync` call**.
 
 ---
 
-## Disconnect
+## Notes
 
-`Disconnect()` does not close the socket (the server owns it). It cancels the send loop channel, clears state, fires `OnDisconnected()`, and unregisters the session from the server registry.
-
----
-
-## Inherited API
-
-All send, receive, statistics, and lifecycle hook methods are inherited from `SessionTransport`. See [SessionTransport](transport-session.md).
-
----
-
-## Remarks
-
-- `HandleSend()` returns `SocketError.DestinationAddressRequired` if `Endpoint` is `null`.
-- There is no `HandleReceive()` override — incoming data is pushed to the session by `UdpServer.ProcessReceiveLoop()` via `session.HandleReceived()`.
-- `IsConnected` is set to `true` immediately when the session is created (on first datagram) and `false` on `Disconnect()`. There is no handshake.
+- UDP session here is **logical**, not a TCP-style connected channel.
+- Endpoint identity is datagram-based (`IP:Port`) and may change over time.
+- Use app-level identifiers if you need long-lived user identity.

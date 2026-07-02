@@ -62,10 +62,10 @@
             * [SslSession](api-reference/netcoreserver/Transport/Ssl/ssl-session.md)
             * [SslClient](api-reference/netcoreserver/Transport/Ssl/ssl-client.md)
             * [SslContext](api-reference/netcoreserver/Transport/Ssl/ssl-context.md)
-        <!-- * UDP
+        * UDP
             * [UdpServer](api-reference/netcoreserver/Transport/Udp/udp-server.md)
             * [UdpSession](api-reference/netcoreserver/Transport/Udp/udp-session.md)
-            * [UdpClient](api-reference/netcoreserver/Transport/Udp/udp-client.md) -->
+            * [UdpClient](api-reference/netcoreserver/Transport/Udp/udp-client.md)
         * UDS
             * [UdsServer](api-reference/netcoreserver/Transport/Uds/uds-server.md)
             * [UdsSession](api-reference/netcoreserver/Transport/Uds/uds-session.md)
