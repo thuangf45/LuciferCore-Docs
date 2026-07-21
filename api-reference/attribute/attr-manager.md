@@ -36,6 +36,7 @@ public ManagerAttribute(string name)
 | Property | Type | Meaning |
 |---|---|---|
 | `Name` | `ByteString` | UTF-8 manager name |
+| `Order` | `int` | Execution/initialization order. Managers run in ascending `Order` (lowest first). Default is `0`. Managers with the same `Order` fall back to discovery order. |
 
 ---
 
@@ -57,6 +58,24 @@ public class ManagerMaster : ManagerBase
 }
 ```
 
+### Controlling run order
+
+Use `Order` when a manager must run before or after another one:
+
+```csharp
+[Manager("NetworkManager", Order = 0)]
+public class ManagerNetwork : ManagerBase
+{
+    // Runs first
+}
+
+[Manager("GameplayManager", Order = 10)]
+public class ManagerGameplay : ManagerBase
+{
+    // Runs after NetworkManager
+}
+```
+
 ---
 
 ## Notes
@@ -67,3 +86,4 @@ public class ManagerMaster : ManagerBase
   - `/start managers`
   - `/stop managers`
   - `/restart managers`
+- `Order` determines run/init sequence across all discovered managers (ascending, lowest runs first); leave unset (`0`) if order doesn't matter.

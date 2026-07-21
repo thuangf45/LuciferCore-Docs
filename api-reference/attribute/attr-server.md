@@ -40,6 +40,7 @@ public ServerAttribute(string name, int port)
 |---|---|---|
 | `Name` | `ByteString` | UTF-8 server name |
 | `Port` | `int` | Listening port |
+| `Order` | `int` | Startup/creation order among discovered servers. Servers start in ascending `Order` (lowest first). Default is `0`. Servers with the same `Order` fall back to discovery order. |
 
 `ByteString` is a low-allocation UTF-8 type used by LuciferCore.
 
@@ -57,6 +58,24 @@ public class ChatServer : WssServer
 }
 ```
 
+### Controlling startup order
+
+Use `Order` when a server depends on another server (or a resource it sets up) being ready first:
+
+```csharp
+[Server("AuthServer", 8440, Order = 0)]
+public class AuthServer : HttpsServer
+{
+    // Starts first
+}
+
+[Server("ChatServer", 8443, Order = 10)]
+public class ChatServer : WssServer
+{
+    // Starts after AuthServer
+}
+```
+
 ---
 
 ## Notes
@@ -65,3 +84,4 @@ public class ChatServer : WssServer
 - Attribute is not inherited (`Inherited = false`).
 - Server name is used in logs and server management commands.
 - Use `[Config]` in the same class for values like cert path and static folder.
+- `Order` determines startup sequence across all discovered servers (ascending, lowest starts first); leave unset (`0`) if order doesn't matter.

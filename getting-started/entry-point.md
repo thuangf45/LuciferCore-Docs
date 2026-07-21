@@ -28,15 +28,12 @@ After `Lucifer.CMD("/run"u8)`, these commands are available:
 
 | Command | Description |
 |---|---|
-| `/start host` | Start host system |
-| `/stop host` | Stop host system |
-| `/restart host` | Restart host system |
-| `/start servers` | Start all servers marked with `[Server]` |
-| `/stop servers` | Stop all servers marked with `[Server]` |
-| `/restart servers` | Restart all servers marked with `[Server]` |
 | `/start managers` | Start all managers marked with `[Manager]` |
 | `/stop managers` | Stop all managers marked with `[Manager]` |
 | `/restart managers` | Restart all managers marked with `[Manager]` |
+| `/start servers` | Start all servers marked with `[Server]` |
+| `/stop servers` | Stop all servers marked with `[Server]` |
+| `/restart servers` | Restart all servers marked with `[Server]` |
 
 ---
 
