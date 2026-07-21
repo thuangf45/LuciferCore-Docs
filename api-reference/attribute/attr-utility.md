@@ -1,3 +1,4 @@
+
 # Core Attributes
 
 **Namespace:** `LuciferCore.Attributes`
@@ -54,7 +55,7 @@ Registers a method as a console command.
 public class ConsoleCommandAttribute : Attribute { }
 ```
 
-### Usage
+### Usage — no arguments
 
 ```csharp
 [ConsoleCommand("/start proxy", "Start proxy")]
@@ -74,8 +75,41 @@ private static void CmdStop() => Stop();
 | `name` | Command text user types |
 | `description` | Help text (optional) |
 
+### Usage — with arguments
+
+If the command should accept extra text typed after its name, declare the method with a single `string[]` parameter. The dispatcher splits everything after the command name by spaces (empty entries removed) and passes it as that array:
+
+```csharp
+[ConsoleCommand("/kick", "Kick a player by name")]
+private static void CmdKick(string[] args)
+{
+    if (args.Length == 0)
+    {
+        Console.WriteLine("Usage: /kick <playerName>");
+        return;
+    }
+
+    Kick(args[0]);
+}
+```
+
+Typing:
+
+```
+/kick Thuan reason_afk
+```
+
+invokes `CmdKick(new[] { "Thuan", "reason_afk" })`.
+
+Notes on argument matching:
+- The dispatcher first tries an **exact match** of the whole input against a registered command name (for no-arg commands).
+- If no exact match, it tries a **prefix match**: the input up to the first space is matched as the command name, and everything after that space is treated as arguments.
+- A command name that expects arguments must therefore be registered without the arguments in the name itself (e.g. `"/kick"`, not `"/kick <name>"`).
+- A method registered without any parameter (no-arg style) will fail if invoked through the prefix/argument path — pick one shape (no params, or a single `string[]`) per method depending on whether it needs input.
+
 Notes:
-- Method should be `static` with no parameters.
+- Method should be `static`.
+- Method has either **no parameters** or exactly **one `string[]` parameter** — no other signatures are supported.
 - `AllowMultiple = true` means one method can have many aliases.
 
 ---
@@ -219,6 +253,6 @@ public class PlayerLayout
 ## Notes
 
 - All attributes in this page are optional helpers.
-- `[ConsoleCommand]` is the only one here that supports multiple attributes on one target.
+- `[ConsoleCommand]` is the only one here that supports multiple attributes on one target, and its methods must be either parameterless or take a single `string[]`.
 - `[LogTag]` is not inherited by child classes.
 - Some text fields are stored internally as `ByteString` for efficient reuse.
