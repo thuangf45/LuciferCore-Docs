@@ -63,7 +63,7 @@ public class ChatServer : WssServer
 ## Step 2) Create a session
 
 Use `[RateLimiter]` to limit request rate per session.  
-Forward HTTP requests to the router with `Lucifer.Route(...)`.
+Forward HTTP requests to the router with `RouteHandler.Route(...)`.
 
 ```csharp
 [RateLimiter(10, 1)]
@@ -80,7 +80,7 @@ public partial class ChatSession : WssSession
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnReceivedRequest(RequestModel request)
-        => Lucifer.Route(request, this);
+        => RouteHandler.Route(request, this);
 }
 ```
 

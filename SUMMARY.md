@@ -35,8 +35,9 @@
     * [ResponseModel](api-reference/model/response-model.md)
 * Pools
     * [PooledObject](api-reference/pool/pooled-object.md)
+* Memory
+    * [Buffer](api-reference/memory/storage-buffer.md)
 * Storage
-    * [Buffer](api-reference/storage/storage-buffer.md)
     * [FileCache](api-reference/storage/storage-filecache.md)
     * [HeapQueue & Event](api-reference/storage/storage-scheduling.md)
 * UTF-8

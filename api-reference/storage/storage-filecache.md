@@ -1,6 +1,6 @@
 # FileCache
 
-**Namespace:** `LuciferCore.Storage`
+**Namespace:** `LuciferCore.Cache`
 
 `FileCache` is an in-memory, thread-safe cache for static files and byte payloads.
 

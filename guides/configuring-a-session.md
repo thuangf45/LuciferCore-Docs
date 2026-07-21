@@ -55,7 +55,7 @@ Example: `[RateLimiter(10, 1)]` = up to **10 messages per second** per connectio
 
 ## Forward data to router
 
-Override receive methods for your session type and forward routable requests to `Lucifer.Route(...)`.
+Override receive methods for your session type and forward routable requests to `RouteHandler.Route(...)`.
 
 Keep session code thin.  
 Business logic should stay in handlers/middlewares/managers.
@@ -67,10 +67,10 @@ protected override void OnWsReceived(byte[] buffer, long offset, long size)
 }
 
 protected override void OnReceivedRequest(RequestModel request)
-    => Lucifer.Route(request, this);
+    => RouteHandler.Route(request, this);
 ```
 
-`Lucifer.Route(...)` dispatches to the correct endpoint/handler.
+`RouteHandler.Route(...)` dispatches to the correct endpoint/handler.
 
 ---
 
@@ -91,7 +91,7 @@ public partial class ChatSession : WssSession
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override void OnReceivedRequest(RequestModel request)
-        => Lucifer.Route(request, this);
+        => RouteHandler.Route(request, this);
 }
 ```
 
