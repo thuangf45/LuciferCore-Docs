@@ -175,6 +175,6 @@ Lucifer.CMD("/run"u8);
 ```
 
 LuciferCore auto-discovers classes with attributes like:
-`[Server]`, `[Handler]`, `[Manager]`, `[Middleware]`, `[Service]`.
+`[Server]`, `[Handler]`, `[Manager]`, `[Middleware]`.
 
 You are now running a full event-driven ecosystem.
